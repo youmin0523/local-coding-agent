@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment / secrets
+.env
+.env.local
+
+# Local runtime data (db, logs, indexes, downloaded models, LoRA adapters)
+models/
+data/
+*.gguf
+*.sqlite
+*.sqlite3
+*.db
+
+# Node / web frontend
+node_modules/
+src/lca/web/frontend/dist/
+src/lca/web/frontend/node_modules/
+
+# OS
+Thumbs.db
+.DS_Store
