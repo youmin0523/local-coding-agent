@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -106,6 +108,20 @@ class SandboxRunner:
             timed_out=timed_out,
             duration_s=round(time.monotonic() - start, 3),
         )
+
+    async def run_python(self, code: str, *, timeout_s: float | None = None) -> SandboxResult:
+        """Run a Python snippet with the current interpreter in the sandbox.
+
+        The snippet is written to a private temp directory; it runs with the
+        workspace as cwd (so it can import project code) under the same timeout /
+        scrubbed-env / no-network guards as any other command.
+        """
+        with tempfile.TemporaryDirectory(prefix="lca_exec_") as tmp:
+            snippet = Path(tmp) / "snippet.py"
+            snippet.write_text(code, encoding="utf-8")
+            return await self.run_command(
+                [sys.executable, str(snippet)], cwd=self._root, timeout_s=timeout_s
+            )
 
     def _truncate(self, raw: bytes) -> str:
         text = raw.decode("utf-8", errors="replace")
