@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from lca.tools.base import (
     Artifact,
     RiskLevel,
@@ -13,12 +15,17 @@ from lca.tools.base import (
 from lca.tools.fs_read import read_tools
 from lca.tools.fs_write import write_tools
 from lca.tools.registry import ToolRegistry
+from lca.tools.search_code import SearchCodeTool
 from lca.tools.shell import RunShellTool
+
+if TYPE_CHECKING:
+    from lca.rag.retriever import Retriever
 
 __all__ = [
     "Artifact",
     "RiskLevel",
     "RunShellTool",
+    "SearchCodeTool",
     "Tool",
     "ToolContext",
     "ToolRegistry",
@@ -30,9 +37,11 @@ __all__ = [
 ]
 
 
-def build_default_registry() -> ToolRegistry:
-    """Registry with the built-in filesystem and shell tools (no RAG/web/MCP yet)."""
+def build_default_registry(retriever: Retriever | None = None) -> ToolRegistry:
+    """Built-in filesystem + shell tools, plus `search_code` if a retriever is given."""
     registry = ToolRegistry()
     for tool in (*read_tools(), *write_tools(), RunShellTool()):
         registry.register(tool)
+    if retriever is not None:
+        registry.register(SearchCodeTool(retriever))
     return registry

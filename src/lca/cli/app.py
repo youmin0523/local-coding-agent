@@ -9,6 +9,8 @@ intelligence always lives below `core/`.
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
+from typing import Literal
 
 import typer
 from rich.console import Console
@@ -16,9 +18,23 @@ from rich.panel import Panel
 from rich.table import Table
 
 from lca import __version__
+from lca.cli.approval import CliApprover
+from lca.cli.render import render_event
+from lca.config.paths import index_db_path
 from lca.config.settings import get_settings
+from lca.core.agent import Agent
+from lca.core.session import Session
 from lca.engine_mgmt.doctor import DoctorReport, run_doctor
 from lca.observability.logging import configure_logging
+from lca.permissions.modes import AutonomyMode
+from lca.permissions.policy import DefaultPolicy
+from lca.providers.registry import build_provider, resolve_model
+from lca.rag.embedder import default_embedder
+from lca.rag.hybrid import HybridRetriever
+from lca.rag.indexer import Indexer
+from lca.rag.retriever import Retriever
+from lca.rag.store import SqliteVectorStore
+from lca.tools import build_default_registry
 
 app = typer.Typer(
     name="lca",
@@ -83,6 +99,67 @@ def _render_doctor(report: DoctorReport) -> None:
         console.print(f"  [yellow]![/] {warning}")
     verdict = "[green]READY[/]" if report.ok else "[red]NOT READY[/]"
     console.print(Panel(verdict, title="Verdict", expand=False))
+
+
+@app.command()
+def index(path: str = typer.Argument(".", help="Workspace directory to index.")) -> None:
+    """Build/refresh the local code index used for retrieval (RAG)."""
+    settings = get_settings()
+    configure_logging(settings.log.format, settings.log.level)
+    root = Path(path).resolve()
+    store = SqliteVectorStore(index_db_path())
+    indexer = Indexer(store, default_embedder(), root=root)
+    with console.status(f"Indexing {root}…"):
+        stats = indexer.index_all()
+    store.close()
+    console.print(
+        f"[green]Indexed[/] {stats.files_indexed} file(s) "
+        f"({stats.chunks} chunks), skipped {stats.files_skipped}, removed {stats.files_removed}."
+    )
+
+
+@app.command()
+def ask(
+    prompt: str = typer.Argument(..., help="What you want the agent to do."),
+    path: str = typer.Option(".", "--path", "-C", help="Workspace directory."),
+    auto: bool = typer.Option(False, "--auto", help="Autonomous mode (auto-approve ≤ ceiling)."),
+    plan: bool = typer.Option(False, "--plan", help="Plan mode (propose actions, never execute)."),
+) -> None:
+    """Run a single agent turn against the local engine."""
+    settings = get_settings()
+    configure_logging(settings.log.format, settings.log.level)
+    workspace = Path(path).resolve()
+    mode = AutonomyMode.AUTONOMOUS if auto else (AutonomyMode.PLAN if plan else AutonomyMode.GATED)
+
+    retriever = _open_retriever()
+    provider = build_provider(settings)
+    logical: Literal["brain", "fast"] = "brain" if settings.profile == "quality" else "fast"
+    agent = Agent(
+        provider,
+        build_default_registry(retriever),
+        DefaultPolicy(),
+        CliApprover(console),
+        model=resolve_model(logical, settings),
+        retriever=retriever,
+    )
+    session = Session(
+        workspace_root=workspace, mode=mode, token_budget=settings.llm.max_context_tokens
+    )
+
+    async def _run() -> None:
+        async for event in agent.run_turn(session, prompt):
+            render_event(console, event)
+
+    asyncio.run(_run())
+
+
+def _open_retriever() -> Retriever | None:
+    """Open the on-disk index as a retriever, if one has been built."""
+    db = index_db_path()
+    if not db.exists():
+        return None
+    store = SqliteVectorStore(db)
+    return HybridRetriever(store, default_embedder())
 
 
 def main() -> None:

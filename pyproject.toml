@@ -79,8 +79,15 @@ module = [
     "trafilatura.*",
     "ddgs.*",
     "mcp.*",
+    "watchdog.*",
 ]
 ignore_missing_imports = true
+
+# The watcher subclasses watchdog's (untyped) event handler when the optional
+# dependency is present; allow subclassing Any only here.
+[[tool.mypy.overrides]]
+module = ["lca.rag.watcher"]
+disallow_subclassing_any = false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
