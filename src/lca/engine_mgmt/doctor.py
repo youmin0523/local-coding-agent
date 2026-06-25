@@ -135,6 +135,16 @@ async def run_doctor(
         report.notes.append(
             f"Engine reachable; models: {', '.join(report.engine.models) or '(none reported)'}."
         )
+        # Catch the common footgun: configured model ids the engine doesn't actually serve.
+        served = report.engine.models
+        active = (
+            settings.llm.brain_model if settings.profile == "quality" else settings.llm.fast_model
+        )
+        if served and not any(active in s or s in active for s in served):
+            report.warnings.append(
+                f"Active model '{active}' (profile={settings.profile}) is not served by the "
+                f"engine. Available: {', '.join(served)}. Set LCA_LLM__{'BRAIN' if settings.profile == 'quality' else 'FAST'}_MODEL to match."
+            )
 
     report.context_budget = settings.llm.max_context_tokens
     n_ctx = report.engine.context_window

@@ -53,6 +53,25 @@ def version() -> None:
 
 
 @app.command()
+def config() -> None:
+    """Show the effective configuration (engine, profile, models, autonomy)."""
+    s = get_settings()
+    table = Table(title="lca config", header_style="bold")
+    table.add_column("Setting")
+    table.add_column("Value")
+    table.add_row("engine base_url", s.llm.base_url)
+    table.add_row("profile", s.profile)
+    table.add_row("brain model", s.llm.brain_model)
+    table.add_row("fast model", s.llm.fast_model)
+    table.add_row("max context tokens", str(s.llm.max_context_tokens))
+    table.add_row("autonomy default", s.autonomy)
+    table.add_row("searxng url", s.search.searxng_url or "(none)")
+    table.add_row("tavily key", "set" if s.search.tavily_api_key else "(none)")
+    table.add_row("log", f"{s.log.format} / {s.log.level}")
+    console.print(table)
+
+
+@app.command()
 def stats() -> None:
     """Show how much the agent has learned and indexed so far."""
     from lca.memory.store import MemoryStore
