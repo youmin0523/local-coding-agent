@@ -46,9 +46,12 @@ class ApprovalRequest(BaseModel):
 
 
 class _Run:
-    def __init__(self, approver: WebApprover, queue: asyncio.Queue[dict[str, object] | None]) -> None:
+    def __init__(
+        self, approver: WebApprover, queue: asyncio.Queue[dict[str, object] | None]
+    ) -> None:
         self.approver = approver
         self.queue = queue
+        self.task: asyncio.Task[None] | None = None
 
 
 class RunManager:
@@ -81,7 +84,7 @@ class RunManager:
             finally:
                 await queue.put(None)
 
-        asyncio.create_task(drive())
+        run.task = asyncio.create_task(drive())
         return run_id
 
     def exists(self, run_id: str) -> bool:

@@ -23,9 +23,12 @@ from lca.cli.approval import CliApprover
 from lca.cli.render import render_event
 from lca.config.paths import index_db_path
 from lca.config.settings import get_settings
+from lca.core.agent import Agent
 from lca.core.session import Session
 from lca.engine_mgmt.doctor import DoctorReport, run_doctor
+from lca.evaluation import default_tasks, load_tasks, run_eval
 from lca.observability.logging import configure_logging
+from lca.permissions.approver import AutoApprover
 from lca.permissions.modes import AutonomyMode
 from lca.rag.embedder import default_embedder
 from lca.rag.indexer import Indexer
@@ -179,6 +182,46 @@ def web(
     application = create_app(workspace=Path(path).resolve())
     console.print(f"[green]lca web[/] → http://{host}:{port}")
     uvicorn.run(application, host=host, port=port, log_level="warning")
+
+
+@app.command(name="eval")
+def evaluate(
+    path: str = typer.Option(".", "--path", "-C", help="Workspace directory."),
+    tasks_file: str | None = typer.Option(None, "--tasks", help="JSONL task file (optional)."),
+    verify: bool = typer.Option(True, "--verify/--no-verify", help="Verify answers during eval."),
+) -> None:
+    """Run the eval suite against the local engine and print a scorecard."""
+    settings = get_settings()
+    configure_logging(settings.log.format, settings.log.level)
+    workspace = Path(path).resolve()
+    tasks = load_tasks(Path(tasks_file)) if tasks_file else default_tasks()
+    model_logical: Literal["brain", "fast"] = "brain" if settings.profile == "quality" else "fast"
+
+    def factory() -> Agent:
+        return build_agent(
+            AutoApprover(),
+            settings=settings,
+            model_logical=model_logical,
+            verify=verify,
+            use_memory=False,
+        )
+
+    scorecard = asyncio.run(run_eval(factory, tasks, workspace))
+
+    table = Table(title="lca eval", header_style="bold")
+    table.add_column("task")
+    table.add_column("result")
+    table.add_column("detail")
+    for r in scorecard.results:
+        mark = "[green]PASS[/]" if r.passed else "[red]FAIL[/]"
+        table.add_row(r.id, mark, r.detail or ("abstained" if r.abstained else ""))
+    console.print(table)
+    console.print(
+        f"pass rate [bold]{scorecard.pass_rate:.0%}[/] "
+        f"({scorecard.passed}/{scorecard.total}) · "
+        f"tool validity {scorecard.tool_validity:.0%} "
+        f"({scorecard.tool_calls - scorecard.tool_failures}/{scorecard.tool_calls})"
+    )
 
 
 def main() -> None:
