@@ -32,7 +32,7 @@ def extract_text(html: str) -> str:
     try:
         import trafilatura  # optional `search` extra
 
-        extracted = trafilatura.extract(html)
+        extracted: str | None = trafilatura.extract(html)
         if extracted:
             return extracted
     except Exception:
