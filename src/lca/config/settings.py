@@ -57,6 +57,8 @@ class Settings(BaseSettings):
     autonomy: AutonomyLiteral = "gated"
     # Default natural language for the agent's prose replies (code is left as-is).
     response_language: str = "Korean"
+    # Judge-vote ratio required to deliver (else abstain). Calibrate on held-out tasks.
+    verify_pass_threshold: float = 0.6
 
     llm: LLMSettings = Field(default_factory=LLMSettings)
     search: SearchSettings = Field(default_factory=SearchSettings)

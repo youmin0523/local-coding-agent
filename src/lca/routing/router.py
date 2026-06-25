@@ -37,5 +37,7 @@ class Router:
         if difficulty == Difficulty.EASY:
             return RoutePlan(model="fast", samples=1, verify=False, difficulty=difficulty)
         if difficulty == Difficulty.NORMAL:
-            return RoutePlan(model=self._model(), samples=1, verify=True, difficulty=difficulty)
-        return RoutePlan(model=self._model(), samples=3, verify=True, difficulty=difficulty)
+            return RoutePlan(model=self._model(), samples=2, verify=True, difficulty=difficulty)
+        # HARD: spend the most test-time compute — best-of-N with execution selection
+        # is the single largest quality lever for verifiable tasks.
+        return RoutePlan(model=self._model(), samples=5, verify=True, difficulty=difficulty)

@@ -72,7 +72,11 @@ def build_agent(
     model = resolve_model(model_logical, settings)
     retriever = open_retriever()
     memory = open_memory() if use_memory else None
-    verifier = build_llm_gate(provider, model) if verify else None
+    verifier = (
+        build_llm_gate(provider, model, pass_threshold=settings.verify_pass_threshold)
+        if verify
+        else None
+    )
     registry = build_default_registry(retriever, enable_web=enable_web)
     skills = load_skills(*default_skill_roots())
     if skills:
