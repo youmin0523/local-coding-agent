@@ -9,6 +9,7 @@ intelligence always lives below `core/`.
 from __future__ import annotations
 
 import asyncio
+import sys
 from pathlib import Path
 from typing import Literal
 
@@ -36,6 +37,21 @@ from lca.rag.embedder import default_embedder
 from lca.rag.indexer import Indexer
 from lca.rag.store import SqliteVectorStore
 from lca.routing.router import Router
+
+def _force_utf8_stdio() -> None:
+    """Windows consoles default to a legacy codepage (cp949 on Korean Windows);
+    force UTF-8 so Rich output (—, ✓, →, box-drawing) never raises
+    UnicodeEncodeError. Safe no-op where the streams can't be reconfigured."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8")
+            except (ValueError, OSError):  # pragma: no cover - redirected/closed stream
+                pass
+
+
+_force_utf8_stdio()
 
 app = typer.Typer(
     name="lca",
