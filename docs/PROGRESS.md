@@ -1,6 +1,24 @@
-# PROGRESS — overnight build summary
+# PROGRESS — build summary
 
-Built autonomously while you slept. Everything below is committed locally (no push).
+Built autonomously. Everything below is committed locally (no push).
+
+## ✅ Live-validated
+The real 7B model (LM Studio, port 1234) ran end-to-end: `lca doctor` = READY (RTX 5070,
+all 3 models detected), and `lca ask` wrote a Fibonacci function and ran it to the correct
+answer (55). A live bug was found+fixed (run_python couldn't import workspace files →
+PYTHONPATH), after which the 7B solved it cleanly in 2 steps.
+
+## Capability upgrades since first build (M13–M18, ~88 tests)
+- **M13 Continuous auto-learning** — every turn grounded by passing checks / executed code /
+  citations is remembered automatically (verified-only write gate). Learning is ON by default.
+- **M14 Best-of-N** — with verification, samples several candidate answers and delivers the
+  best-verified one (or abstains). The main capability lever toward frontier quality.
+- **M15 Sharper prompt + `lca chat`** — procedural workflow that fixes small-model loops
+  (just run/import by name, never repeat a failing action); multi-turn REPL.
+- **M16 Smart-by-default** — CLI & web auto-route by difficulty (easy→fast 1-shot; harder→
+  verify + best-of-N), respecting the loaded model profile.
+- **M17 `list_symbols`** — instant AST outline (classes/functions+lines) for fast analysis.
+- **M18 Long-session memory** — summarizes dropped older turns to keep continuity.
 
 ## TL;DR
 - A complete, working **local coding agent** (`lca`) — CLI **and** web UI — with the
