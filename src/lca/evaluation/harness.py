@@ -22,6 +22,7 @@ async def run_eval(factory: AgentFactory, tasks: list[EvalTask], workspace: Path
     total_calls = 0
     total_failures = 0
 
+    exec_tools = {"run_python", "run_checks", "run_shell"}
     for task in tasks:
         agent = factory()
         session = Session(workspace_root=workspace)
@@ -29,20 +30,38 @@ async def run_eval(factory: AgentFactory, tasks: list[EvalTask], workspace: Path
         abstained = False
         calls = 0
         failures = 0
+        produced: list[str] = []  # files written + execution output this task
+        written: set[str] = set()
         async for event in agent.run_turn(session, task.prompt):
             kind = event.type
             if kind == "tool_finished":
                 calls += 1
-                if not event.result.ok:  # type: ignore[union-attr]
+                result = event.result  # type: ignore[union-attr]
+                if not result.ok:
                     failures += 1
+                for art in result.artifacts:
+                    if art.uri:  # files created/edited (diff artifacts carry a path)
+                        written.add(art.uri)
+                if event.name in exec_tools:  # type: ignore[union-attr]
+                    produced.append(result.content)
             elif kind == "abstain":
                 abstained = True
             elif kind == "turn_finished":
                 answer = event.content  # type: ignore[union-attr]
 
+        # The task artifact may live in a written file, not the chat summary — read it.
+        for rel in written:
+            path = workspace / rel
+            if path.is_file():
+                try:
+                    produced.append(path.read_text("utf-8", errors="replace"))
+                except OSError:
+                    pass
+        haystack = "\n".join([answer, *produced])
+
         total_calls += calls
         total_failures += failures
-        passed = _passed(task, answer, abstained)
+        passed = _passed(task, haystack, abstained)
         results.append(
             TaskResult(
                 id=task.id,
@@ -50,7 +69,7 @@ async def run_eval(factory: AgentFactory, tasks: list[EvalTask], workspace: Path
                 abstained=abstained,
                 tool_calls=calls,
                 tool_failures=failures,
-                detail="" if passed else f"answer did not satisfy task ({len(answer)} chars)",
+                detail="" if passed else f"answer did not satisfy task ({len(haystack)} chars)",
             )
         )
 
