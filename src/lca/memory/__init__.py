@@ -1,2 +1,7 @@
-"""Experience memory (M9): a ReasoningBank-style store on sqlite-vec where only
-execution-verified results are written. Built out in milestone M9."""
+"""Experience memory: a verified-only, retrievable record of past work."""
+
+from lca.memory.memory import ExperienceMemory, Memory
+from lca.memory.models import MemoryItem, MemoryKind
+from lca.memory.store import MemoryStore
+
+__all__ = ["ExperienceMemory", "Memory", "MemoryItem", "MemoryKind", "MemoryStore"]

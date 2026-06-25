@@ -42,6 +42,7 @@ from lca.tools.base import ToolContext, ToolResult, ToolSpec
 from lca.tools.registry import ToolRegistry
 
 if TYPE_CHECKING:
+    from lca.memory.memory import Memory
     from lca.rag.retriever import Retriever
     from lca.verification.gate import Verifier
 
@@ -59,6 +60,7 @@ class Agent:
         model: str,
         retriever: Retriever | None = None,
         verifier: Verifier | None = None,
+        memory: Memory | None = None,
         max_tool_iterations: int = 8,
         temperature: float = 0.2,
         max_tokens: int = 2048,
@@ -72,6 +74,7 @@ class Agent:
         self._model = model
         self._retriever = retriever
         self._verifier = verifier
+        self._memory = memory
         self._max_iter = max_tool_iterations
         self._temperature = temperature
         self._max_tokens = max_tokens
@@ -148,6 +151,11 @@ class Agent:
             verdict=verdict.verdict, confidence=verdict.confidence, detail=verdict.rationale
         )
         if verdict.verdict == "pass":
+            if self._memory is not None:
+                try:
+                    await self._memory.remember(task, answer, verified=True)
+                except Exception as exc:  # remembering must never break a turn
+                    log.warning("agent.remember_failed", error=str(exc))
             yield TurnFinished(stop_reason="complete", content=answer)
             return
         reason = (
@@ -222,11 +230,19 @@ class Agent:
         ]
 
     async def _retrieve(self, query: str) -> RetrievedContext | None:
-        if self._retriever is None:
+        snippets: list[str] = []
+        experiences: list[str] = []
+        if self._retriever is not None:
+            try:
+                chunks = await self._retriever.retrieve(query)
+                snippets = [c.render() for c in chunks]
+            except Exception as exc:  # retrieval failures must not break a turn
+                log.warning("agent.retrieve_failed", error=str(exc))
+        if self._memory is not None:
+            try:
+                experiences = await self._memory.recall(query)
+            except Exception as exc:
+                log.warning("agent.recall_failed", error=str(exc))
+        if not snippets and not experiences:
             return None
-        try:
-            snippets = await self._retriever.retrieve(query)
-        except Exception as exc:  # retrieval failures must not break a turn
-            log.warning("agent.retrieve_failed", error=str(exc))
-            return None
-        return RetrievedContext(code_snippets=[s.render() for s in snippets])
+        return RetrievedContext(code_snippets=snippets, experiences=experiences)
