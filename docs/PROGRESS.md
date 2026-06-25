@@ -28,8 +28,17 @@ PYTHONPATH), after which the 7B solved it cleanly in 2 steps.
 - **M23 Engine resilience** — RetryingProvider retries transient pre-stream failures (never mid-stream).
 - **M24 Config visibility** — `lca config`; `doctor` warns on model-id mismatch.
 
-~97 tests, all green; mypy --strict / ruff / import-linter clean. Commands:
+- **M25 Execution-grounded verification** — the turn's run_checks result dominates the
+  verdict: a failing check forces abstain even if the LLM judge says pass. Strongest lever.
+- **M26 CI** — GitHub Actions runs ruff/mypy/import-linter/pytest on push/PR.
+- **M27 Security hardening** — adversarial tests (path-escape, shell-allowlist bypass) +
+  `docs/SECURITY.md` threat model. Central to the on-device security motivation.
+- **M28 Observability** — agent accumulates runtime metrics (tool validity, abstentions),
+  shown in `lca chat`.
+
+~110 tests, all green; mypy --strict / ruff / import-linter / CI clean. Commands:
 `doctor · config · stats · index · ask · chat · web · mcp · learn · eval · version`.
+See also `docs/SECURITY.md`, `docs/architecture.md`, `docs/adr/`.
 
 ## TL;DR
 - A complete, working **local coding agent** (`lca`) — CLI **and** web UI — with the
