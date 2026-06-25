@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 from lca.core.context import ContextBuilder, RetrievedContext
 from lca.core.errors import ProviderError, ToolNotFoundError
 from lca.core.events import (
+    Abstained,
     AgentEvent,
     ApprovalRequired,
     ApprovalResolved,
@@ -28,6 +29,7 @@ from lca.core.events import (
     ToolProposed,
     ToolStarted,
     TurnFinished,
+    VerificationResult,
 )
 from lca.core.messages import Message, ToolCall
 from lca.core.session import Session
@@ -41,6 +43,7 @@ from lca.tools.registry import ToolRegistry
 
 if TYPE_CHECKING:
     from lca.rag.retriever import Retriever
+    from lca.verification.gate import Verifier
 
 log = get_logger("core.agent")
 
@@ -55,6 +58,7 @@ class Agent:
         *,
         model: str,
         retriever: Retriever | None = None,
+        verifier: Verifier | None = None,
         max_tool_iterations: int = 8,
         temperature: float = 0.2,
         max_tokens: int = 2048,
@@ -67,6 +71,7 @@ class Agent:
         self._approver = approver
         self._model = model
         self._retriever = retriever
+        self._verifier = verifier
         self._max_iter = max_tool_iterations
         self._temperature = temperature
         self._max_tokens = max_tokens
@@ -114,7 +119,8 @@ class Agent:
             messages.append(assistant)
 
             if not calls:
-                yield TurnFinished(stop_reason="complete", content=text)
+                async for ev in self._finalize(user_input, text):
+                    yield ev
                 return
 
             for call in calls:
@@ -122,6 +128,35 @@ class Agent:
                     yield ev
 
         yield TurnFinished(stop_reason="budget", content="Stopped: tool-iteration limit reached.")
+
+    async def _finalize(self, task: str, answer: str) -> AsyncIterator[AgentEvent]:
+        """Run the verification gate on the final answer; deliver or abstain."""
+        if self._verifier is None or not answer.strip():
+            yield TurnFinished(stop_reason="complete", content=answer)
+            return
+        try:
+            verdict = await self._verifier.verify_answer(task, answer)
+        except Exception as exc:  # verification must never crash a turn
+            log.warning("agent.verify_failed", error=str(exc))
+            yield TurnFinished(stop_reason="complete", content=answer)
+            return
+        if verdict is None:
+            yield TurnFinished(stop_reason="complete", content=answer)
+            return
+
+        yield VerificationResult(
+            verdict=verdict.verdict, confidence=verdict.confidence, detail=verdict.rationale
+        )
+        if verdict.verdict == "pass":
+            yield TurnFinished(stop_reason="complete", content=answer)
+            return
+        reason = (
+            "Verification was not confident enough to assert this answer."
+            if verdict.verdict == "uncertain"
+            else "Verification found problems with this answer."
+        )
+        yield Abstained(reason=reason, options=verdict.signals)
+        yield TurnFinished(stop_reason="abstained", content=answer)
 
     async def _handle_call(
         self,
