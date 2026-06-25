@@ -38,10 +38,28 @@ the fast/fine-tunable model is **Qwen2.5-Coder-7B-Instruct**. Engine: **LM Studi
 ## Quickstart
 
 ```bash
-uv sync                     # install (Python 3.12+, uv)
+uv sync                     # install (Python 3.12+, uv); add --extra rag,search,mcp,web
 uv run lca doctor           # verify GPU + engine are healthy (run this FIRST)
-uv run lca version
+uv run lca index .          # build the code index (RAG)
+uv run lca ask "create hello.py and run it" --auto   # smart-by-default (auto-routes)
+uv run lca chat             # interactive multi-turn session
+uv run lca web              # browser UI at http://127.0.0.1:8765
+uv run lca mcp              # connect + list local MCP tools (filesystem/git/fetch)
+uv run lca learn            # RLVR self-improvement: rollout -> reward -> SFT dataset
+uv run lca stats            # how much it has learned/indexed
 ```
+
+## How it learns (RL / DL, on-device)
+
+```
+rollout (run tasks)  →  reward (execution/verification pass)  →  keep verified only
+   →  remember (in-context, no training)  →  export SFT corpus  →  QLoRA gradient step (WSL2)
+```
+
+`lca learn` runs the first steps locally (rejection sampling with a verifiable reward —
+STaR/RLVR); the experience **memory** is the no-train half (only verified results are
+written); the optional QLoRA stage (`training/`, WSL2) is the gradient-descent half.
+Watch progress with `lca stats`.
 
 `lca doctor` is the M0 gate: it confirms a discrete NVIDIA GPU is active and the
 engine endpoint is reachable before anything is built on top. See
