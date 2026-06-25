@@ -356,13 +356,14 @@ def skills_cmd(path: str = typer.Option(".", "--path", "-C", help="Workspace dir
 def chat(
     path: str = typer.Option(".", "--path", "-C", help="Workspace directory."),
     auto: bool = typer.Option(False, "--auto", help="Autonomous mode."),
+    plan: bool = typer.Option(False, "--plan", help="Plan mode (propose actions, never execute)."),
     verify: bool = typer.Option(False, "--verify", help="Verify answers (deliver-or-abstain)."),
 ) -> None:
     """Interactive multi-turn chat (one persistent session). Ctrl-D / 'exit' to quit."""
     settings = get_settings()
     configure_logging(settings.log.format, settings.log.level)
     workspace = Path(path).resolve()
-    mode = AutonomyMode.AUTONOMOUS if auto else AutonomyMode.GATED
+    mode = AutonomyMode.AUTONOMOUS if auto else (AutonomyMode.PLAN if plan else AutonomyMode.GATED)
     model_logical: Literal["brain", "fast"] = "brain" if settings.profile == "quality" else "fast"
     agent = build_agent(
         CliApprover(console), settings=settings, model_logical=model_logical, verify=verify
