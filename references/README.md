@@ -1,6 +1,6 @@
 # Reference catalog index
 
-94 cards across 12 categories — surfaced by the reference_docs tool (with fetch_url for live detail).
+127 cards across 13 categories — surfaced by the reference_docs tool (with fetch_url for live detail).
 
 ## db
 - [PostgreSQL](https://www.postgresql.org/docs/current/) — Use PostgreSQL as a general-purpose, ACID-compliant relational database when you need stro
@@ -18,6 +18,41 @@
 - [Render](https://render.com/docs) — PaaS for API + DB + static site with infra-as-code.
 - [uvicorn](https://www.uvicorn.org/) — ASGI server for FastAPI/Starlette in dev and prod.
 - [Vercel](https://vercel.com/docs) — Deploy the static SPA with CDN + preview deploys.
+
+## design
+- [Accessible forms](https://www.w3.org/WAI/tutorials/forms/ ; aria-invalid: https://www.w3.org/WAI/WCAG21/Techniques/aria/ARIA21) — Any form, login, search box, or single input field.
+- [Alignment & proximity (Gestalt)](https://www.interaction-design.org/literature/topics/gestalt-principles) — Laying out cards, forms, lists, and any grouped content. Fixes 'looks broken / messy' inte
+- [Ant Design](https://ant.design/docs/react/migration-v6/) — Choose for data-heavy enterprise/admin apps (tables, forms, dashboards) where a complete, 
+- [Chakra UI](https://chakra-ui.com/docs/get-started/frameworks/vite) — Choose when you want a themeable, batteries-included system with very ergonomic DX (style 
+- [cn() — clsx + tailwind-merge composition](https://github.com/dcastil/tailwind-merge) — Any reusable React component that exposes a className prop or builds class lists condition
+- [Color system & 60-30-10 (Tailwind v4 @theme / OKLCH)](https://tailwindcss.com/blog/tailwindcss-v4) — Defining the design palette and applying color across the app. Add color after grayscale h
+- [Consistency (tokens + reusable components)](https://tailwindcss.com/docs/theme) — As soon as a pattern repeats twice. Prevents drift and keeps the UI feeling unified.
+- [Contrast (WCAG 2.2 AA/AAA)](https://www.w3.org/TR/WCAG22/) — Every color pairing of text, icons, and interactive controls. Non-negotiable for accessibi
+- [Design principle — avoid class soup](https://tailwindcss.com/docs/styling-with-utility-classes) — Whenever a utility list grows long or repeats across elements/components.
+- [Empty, loading & error states](https://tailwindcss.com/docs/animation) — Any async data view, list, table, or form submission.
+- [Headless UI](https://headlessui.com/) — Choose for a pure-Tailwind project needing a handful of accessible interactive primitives 
+- [Keyboard navigation & focus management](https://www.w3.org/WAI/ARIA/apg/practices/keyboard-interface/ ; Dialog pattern: https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/) — Always — keyboard operability and logical focus order are AA requirements (2.1.1, 2.4.3, 2
+- [Material UI (MUI)](https://mui.com/material-ui/getting-started/installation/) — Choose when you need a complete, consistent Material Design UI fast (enterprise dashboards
+- [Motion (motion / Framer Motion) with reduced-motion](https://motion.dev/docs/react) — Transitions, enter/exit, hover/press feedback, and attention cues — sparingly and accessib
+- [Motion for React — motion components & variants](https://motion.dev/docs/react) — Declarative React animations: entrance/exit, hover/tap gestures, staggered lists, scroll r
+- [Motion — accessibility (prefers-reduced-motion)](https://motion.dev/docs/react-accessibility) — Always — wrap the app in MotionConfig reducedMotion='user' and branch heavy effects with u
+- [Motion — AnimatePresence (exit animations)](https://motion.dev/docs/react-animate-presence) — Animating modals, toasts, route transitions, and list item removals where elements leave t
+- [Motion — layout & shared-element animations](https://motion.dev/docs/react-layout-animations) — Reorderable lists, expanding cards, tab indicators, and shared-element transitions between
+- [prefers-reduced-motion (Tailwind + Motion/GSAP)](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion ; Tailwind states: https://tailwindcss.com/docs/hover-focus-and-other-states) — Any time you add Framer Motion / GSAP / CSS animation beyond trivial micro-transitions.
+- [Radix UI Primitives](https://www.radix-ui.com/primitives/docs/overview/getting-started) — Choose when building a bespoke/custom design system and you want complete visual control w
+- [Responsive breakpoints (Tailwind v4, mobile-first)](https://tailwindcss.com/docs/responsive-design) — All layout that must adapt across devices.
+- [Semantic HTML + ARIA (Using ARIA + APG)](https://www.w3.org/TR/using-aria/ ; APG: https://www.w3.org/WAI/ARIA/apg/ ; Patterns: https://www.w3.org/WAI/ARIA/apg/patterns/) — Reach for ARIA only when native HTML cannot express the role, state, or relationship you n
+- [shadcn/ui](https://ui.shadcn.com/docs/installation/vite) — Default modern choice for React 19 + Vite + Tailwind. Pick when you want pre-styled, acces
+- [Spacing & the 8pt grid (Tailwind v4 spacing scale)](https://tailwindcss.com/docs/padding) — All layout, padding, margins, and gaps. Enforces consistent vertical rhythm and clean hand
+- [Tailwind CSS v4 — @theme design tokens](https://tailwindcss.com/docs/theme) — Defining a project's color/spacing/typography/radius/shadow design system in Tailwind v4 s
+- [Tailwind Plus / Catalyst](https://catalyst.tailwindui.com/docs) — Choose when you/your org have a Tailwind Plus license and want a beautiful, production-rea
+- [Tailwind — dark mode (@custom-variant)](https://tailwindcss.com/docs/dark-mode) — Adding light/dark theming, especially when you need a user-controlled toggle rather than p
+- [Tailwind — responsive (mobile-first) + container queries](https://tailwindcss.com/docs/responsive-design) — Layouts that adapt to viewport (responsive) or to a component's own container width (conta
+- [Typographic scale](https://tailwindcss.com/docs/font-size) — All text. Pick sizes from the scale only — avoid arbitrary text-[17px].
+- [Visible focus & color contrast (Tailwind)](1.4.3: https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html ; Tailwind outline: https://tailwindcss.com/docs/outline-style ; WebAIM: https://webaim.org/articles/contrast/) — On every interactive element (focus) and every text/UI color pair (contrast).
+- [Visual hierarchy (size / weight / color)](https://www.interaction-design.org/literature/topics/visual-hierarchy) — Every screen. The first thing to get right before color, decoration, or motion.
+- [WCAG 2.2 (Level AA)](https://www.w3.org/TR/WCAG22/ ; What's new: https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/) — The baseline conformance standard for every production web UI; gate releases on AA.
+- [Whitespace](https://www.designsystems.com/space-grids-and-layouts/) — Layout composition, especially hero/landing and content-heavy pages.
 
 ## frontend
 - [React 19](https://react.dev/) — Use React 19 to build interactive UIs and full-stack web/native apps when you want first-c
