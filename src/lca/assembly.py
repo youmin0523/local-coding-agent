@@ -12,6 +12,8 @@ from typing import Literal
 from lca.config.paths import index_db_path, memory_db_path
 from lca.config.settings import Settings, get_settings
 from lca.core.agent import Agent
+from lca.mcp.client import MCPClientManager
+from lca.mcp.servers import default_servers
 from lca.memory.memory import ExperienceMemory, Memory
 from lca.memory.store import MemoryStore
 from lca.permissions.approver import Approver
@@ -39,6 +41,17 @@ def open_retriever() -> Retriever | None:
 def open_memory() -> Memory:
     """Open the persistent experience memory (created on first write)."""
     return ExperienceMemory(MemoryStore(memory_db_path()), default_embedder())
+
+
+async def attach_mcp(agent: Agent, workspace: str) -> MCPClientManager:
+    """Connect the default local MCP servers and register their tools on the agent.
+
+    Returns the `MCPClientManager` (caller must `await .aclose()` when done). Broken
+    servers are skipped, so a missing npx/uvx doesn't take the agent down.
+    """
+    manager = MCPClientManager()
+    await manager.connect_all(default_servers(workspace), agent.registry)
+    return manager
 
 
 def build_agent(

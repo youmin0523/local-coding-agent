@@ -104,6 +104,11 @@ class Agent:
         self._no_network = no_network
         self._builder = ContextBuilder()
 
+    @property
+    def registry(self) -> ToolRegistry:
+        """The tool registry, so callers can register MCP tools before a turn."""
+        return self._registry
+
     async def run_turn(self, session: Session, user_input: str) -> AsyncIterator[AgentEvent]:
         retrieved = await self._retrieve(user_input)
         messages = self._builder.build(session, user_input, retrieved)

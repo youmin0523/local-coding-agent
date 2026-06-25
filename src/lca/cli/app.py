@@ -18,7 +18,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from lca import __version__
-from lca.assembly import build_agent
+from lca.assembly import attach_mcp, build_agent
 from lca.cli.approval import CliApprover
 from lca.cli.render import render_event
 from lca.config.paths import index_db_path, memory_db_path
@@ -151,6 +151,9 @@ def ask(
         True, "--route/--no-route", help="Auto-pick model + verification by difficulty."
     ),
     no_memory: bool = typer.Option(False, "--no-memory", help="Disable experience memory."),
+    mcp: bool = typer.Option(
+        False, "--mcp", help="Connect local MCP servers (filesystem/git/fetch)."
+    ),
 ) -> None:
     """Run a single agent turn against the local engine."""
     settings = get_settings()
@@ -184,8 +187,48 @@ def ask(
     )
 
     async def _run() -> None:
-        async for event in agent.run_turn(session, prompt):
-            render_event(console, event)
+        manager = await attach_mcp(agent, str(workspace)) if mcp else None
+        if manager is not None:
+            console.print(f"[dim]MCP: {len(agent.registry)} tools available[/]")
+        try:
+            async for event in agent.run_turn(session, prompt):
+                render_event(console, event)
+        finally:
+            if manager is not None:
+                await manager.aclose()
+
+    asyncio.run(_run())
+
+
+@app.command(name="mcp")
+def mcp_cmd(path: str = typer.Option(".", "--path", "-C", help="Workspace directory.")) -> None:
+    """Connect the local MCP servers (filesystem/git/fetch) and list their tools."""
+    settings = get_settings()
+    configure_logging(settings.log.format, settings.log.level)
+    workspace = Path(path).resolve()
+
+    async def _run() -> None:
+        from lca.mcp.client import MCPClientManager
+        from lca.mcp.servers import default_servers
+        from lca.tools.registry import ToolRegistry
+
+        registry = ToolRegistry()
+        manager = MCPClientManager()
+        try:
+            await manager.connect_all(default_servers(str(workspace)), registry)
+            names = registry.names()
+            if not names:
+                console.print(
+                    "[yellow]No MCP tools connected.[/] Needs npx/uvx + first-run download."
+                )
+            else:
+                table = Table(title="MCP tools", header_style="bold")
+                table.add_column("tool")
+                for name in names:
+                    table.add_row(name)
+                console.print(table)
+        finally:
+            await manager.aclose()
 
     asyncio.run(_run())
 
