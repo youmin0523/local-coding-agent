@@ -22,6 +22,7 @@ from lca.providers.base import LLMProvider
 from lca.providers.registry import build_provider, resolve_model
 from lca.rag.embedder import default_embedder
 from lca.rag.hybrid import HybridRetriever
+from lca.rag.reranker import default_reranker
 from lca.rag.retriever import Retriever
 from lca.rag.store import SqliteVectorStore
 from lca.skills.loader import default_skill_roots, load_skills, skills_index
@@ -37,7 +38,8 @@ def open_retriever() -> Retriever | None:
     db = index_db_path()
     if not db.exists():
         return None
-    return HybridRetriever(SqliteVectorStore(db), default_embedder())
+    reranker = default_reranker(get_settings().rag_rerank)
+    return HybridRetriever(SqliteVectorStore(db), default_embedder(), reranker=reranker)
 
 
 def open_memory() -> Memory:

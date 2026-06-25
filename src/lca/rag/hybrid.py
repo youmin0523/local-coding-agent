@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from lca.observability.logging import get_logger
 from lca.rag.embedder import Embedder
+from lca.rag.reranker import Reranker
 from lca.rag.retriever import ScoredChunk
 from lca.rag.store import VectorStore
 
@@ -25,12 +26,14 @@ class HybridRetriever:
         k: int = 8,
         candidate_k: int = 20,
         rrf_k: int = 60,
+        reranker: Reranker | None = None,
     ) -> None:
         self._store = store
         self._embedder = embedder
         self._k = k
         self._candidate_k = candidate_k
         self._rrf_k = rrf_k
+        self._reranker = reranker
 
     async def retrieve(self, query: str, k: int | None = None) -> list[ScoredChunk]:
         top = k or self._k
@@ -48,4 +51,8 @@ class HybridRetriever:
                 fused[key] = (score, chunk)
 
         ordered = sorted(fused.values(), key=lambda t: t[0], reverse=True)
-        return [chunk.model_copy(update={"score": score}) for score, chunk in ordered[:top]]
+        candidates = [chunk.model_copy(update={"score": score}) for score, chunk in ordered]
+        if self._reranker is not None:
+            # Re-score the shortlist jointly, then keep the best `top`.
+            return self._reranker.rerank(query, candidates[: self._candidate_k], top)
+        return candidates[:top]

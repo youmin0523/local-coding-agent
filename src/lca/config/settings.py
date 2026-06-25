@@ -62,6 +62,8 @@ class Settings(BaseSettings):
     # Probe the fast model for answer divergence to escalate hard-but-innocuous-looking
     # tasks (quality profile only). Costs a couple of fast-model samples per turn.
     route_consistency_probe: bool = True
+    # Cross-encoder reranking of retrieval results (downloads a small model on first use).
+    rag_rerank: bool = False
 
     llm: LLMSettings = Field(default_factory=LLMSettings)
     search: SearchSettings = Field(default_factory=SearchSettings)
