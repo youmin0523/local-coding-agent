@@ -407,6 +407,9 @@ def web(
     path: str = typer.Option(".", "--path", "-C", help="Workspace directory."),
     host: str = typer.Option("127.0.0.1", help="Bind host."),
     port: int = typer.Option(8765, help="Bind port."),
+    open_browser: bool = typer.Option(
+        True, "--open/--no-open", help="Open the browser automatically."
+    ),
 ) -> None:
     """Serve the browser chat UI (requires the `web` extra)."""
     settings = get_settings()
@@ -419,7 +422,14 @@ def web(
         console.print("[red]Web UI requires:[/] uv sync --extra web")
         raise typer.Exit(code=1) from None
     application = create_app(workspace=Path(path).resolve())
-    console.print(f"[green]lca web[/] → http://{host}:{port}")
+    url = f"http://{host}:{port}"
+    console.print(f"[green]lca web[/] → {url}  (Ctrl-C to stop)")
+    if open_browser:
+        # Open the browser shortly after the server starts accepting connections.
+        import threading
+        import webbrowser
+
+        threading.Timer(1.2, lambda: webbrowser.open(url)).start()
     uvicorn.run(application, host=host, port=port, log_level="warning")
 
 
