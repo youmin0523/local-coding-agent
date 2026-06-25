@@ -49,6 +49,9 @@ if TYPE_CHECKING:
 
 log = get_logger("core.agent")
 
+# How many times to nudge-and-retry when the model returns an empty completion.
+_MAX_EMPTY_RETRIES = 2
+
 
 class _Signals:
     """Per-turn grounding signals used to decide automatic learning.
@@ -139,13 +142,15 @@ class Agent:
         )
         signals = _Signals()
         self._metrics.incr("turns")
+        empty_retries = 0
+        temperature = self._temperature
 
         for _ in range(self._max_iter):
             req = ChatRequest(
                 messages=messages,
                 model=self._model,
                 tools=schemas,
-                temperature=self._temperature,
+                temperature=temperature,
                 max_tokens=self._max_tokens,
             )
             text_parts: list[str] = []
@@ -164,6 +169,30 @@ class Agent:
                 return
 
             text = "".join(text_parts)
+
+            # Degenerate turn: the model returned neither prose nor a tool call.
+            # Small models occasionally emit an empty completion — nudge and retry
+            # (with a small temperature bump) before giving up, rather than silently
+            # delivering nothing.
+            if not calls and not text.strip():
+                if empty_retries < _MAX_EMPTY_RETRIES:
+                    empty_retries += 1
+                    temperature = min(0.8, temperature + 0.3)
+                    self._metrics.incr("empty_completions")
+                    log.warning("agent.empty_completion", attempt=empty_retries)
+                    messages.append(
+                        Message.user(
+                            "Your previous response was empty. Answer the request now, "
+                            "directly and concisely."
+                        )
+                    )
+                    continue
+                yield TurnFinished(
+                    stop_reason="empty",
+                    content="I couldn't produce a response. Please rephrase or add detail.",
+                )
+                return
+
             assistant = Message.assistant(content=text or None, tool_calls=calls)
             session.add(assistant)
             messages.append(assistant)

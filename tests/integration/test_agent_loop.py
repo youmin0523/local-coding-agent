@@ -22,6 +22,27 @@ def _agent(provider: FakeProvider, approver) -> Agent:
     return Agent(provider, build_default_registry(), DefaultPolicy(), approver, model="fake")
 
 
+async def test_empty_completion_retries_then_answers(workspace: Path):
+    # First completion is empty (no text, no tool call); the retry succeeds.
+    provider = FakeProvider([text_chunks(""), text_chunks("The answer is 42.")])
+    agent = _agent(provider, AutoApprover())
+    session = Session(workspace_root=workspace, mode=AutonomyMode.GATED)
+
+    events = await drain(agent.run_turn(session, "what is the answer?"))
+
+    turn = first_of(events, "turn_finished")
+    assert turn.stop_reason == "complete" and "42" in turn.content
+
+
+async def test_empty_completion_gives_up_gracefully(workspace: Path):
+    provider = FakeProvider([text_chunks("")] * 3)  # always empty
+    agent = _agent(provider, AutoApprover())
+    session = Session(workspace_root=workspace, mode=AutonomyMode.GATED)
+
+    turn = first_of(await drain(agent.run_turn(session, "hello?")), "turn_finished")
+    assert turn.stop_reason == "empty"
+
+
 async def test_read_tool_then_answer(workspace: Path):
     (workspace / "hello.txt").write_text("hi there", encoding="utf-8")
     provider = FakeProvider(
