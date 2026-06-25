@@ -45,6 +45,17 @@ app = typer.Typer(
 )
 console = Console()
 
+# Domain task set distilled from the user's own projects (used by learn/eval if present).
+_DOMAIN_TASKS = Path("evals/user_domain_tasks.jsonl")
+
+
+def _resolve_tasks(tasks_file: str | None):
+    if tasks_file:
+        return load_tasks(Path(tasks_file))
+    if _DOMAIN_TASKS.exists():
+        return load_tasks(_DOMAIN_TASKS)
+    return default_tasks()
+
 
 @app.command()
 def version() -> None:
@@ -334,7 +345,7 @@ def learn(
     settings = get_settings()
     configure_logging(settings.log.format, settings.log.level)
     workspace = Path(path).resolve()
-    tasks = load_tasks(Path(tasks_file)) if tasks_file else default_tasks()
+    tasks = _resolve_tasks(tasks_file)
     model_logical: Literal["brain", "fast"] = "brain" if settings.profile == "quality" else "fast"
 
     def factory() -> Agent:
@@ -387,7 +398,7 @@ def evaluate(
     settings = get_settings()
     configure_logging(settings.log.format, settings.log.level)
     workspace = Path(path).resolve()
-    tasks = load_tasks(Path(tasks_file)) if tasks_file else default_tasks()
+    tasks = _resolve_tasks(tasks_file)
     model_logical: Literal["brain", "fast"] = "brain" if settings.profile == "quality" else "fast"
 
     def factory() -> Agent:
