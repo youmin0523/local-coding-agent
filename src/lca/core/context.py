@@ -14,8 +14,13 @@ from lca.core.messages import Message
 from lca.core.prompts import SYSTEM_PROMPT, language_note, workspace_note
 from lca.core.session import Session
 
-# Rough chars-per-token for budgeting without a tokenizer dependency.
-_CHARS_PER_TOKEN = 4
+# Rough chars-per-token for budgeting without a tokenizer dependency. Deliberately
+# conservative (3, not 4): Korean and code are denser than English prose, so a lower
+# value under-fills the window rather than risking overflow on an 8GB / 16K context.
+_CHARS_PER_TOKEN = 3
+# Cap the retrieved-grounding block so large code chunks can't crowd out the task,
+# history, and the model's room to reason.
+_GROUNDING_CHAR_CAP = 8000
 
 
 @dataclass
@@ -55,6 +60,8 @@ class ContextBuilder:
         if self._skills_note:
             system += "\n\n" + self._skills_note
         grounding = retrieved.render() if retrieved else ""
+        if len(grounding) > _GROUNDING_CHAR_CAP:
+            grounding = grounding[:_GROUNDING_CHAR_CAP] + "\n…[grounding truncated]"
         if grounding:
             system += "\n\n" + grounding
 

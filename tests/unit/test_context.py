@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from lca.core.context import ContextBuilder
+from lca.core.context import _GROUNDING_CHAR_CAP, ContextBuilder, RetrievedContext
 from lca.core.messages import Message
 from lca.core.session import Session
 
@@ -31,6 +31,13 @@ def test_no_summary_when_everything_fits(tmp_path: Path):
     session.add(Message.assistant("done"))
     system = ContextBuilder().build(session, "next")[0].content or ""
     assert "Earlier in this session" not in system
+
+
+def test_grounding_block_is_capped(tmp_path: Path):
+    session = Session(workspace_root=tmp_path, token_budget=16384)
+    huge = RetrievedContext(code_snippets=["x" * (_GROUNDING_CHAR_CAP + 5000)])
+    system = ContextBuilder().build(session, "q", huge)[0].content or ""
+    assert "[grounding truncated]" in system
 
 
 def test_language_note_injected(tmp_path: Path):
