@@ -27,6 +27,7 @@ from lca.cli.render import render_event
 from lca.config.paths import index_db_path, memory_db_path
 from lca.config.settings import Settings, get_settings
 from lca.core.agent import Agent
+from lca.core.context import estimate_used_tokens
 from lca.core.events import TokenDelta, ToolFinished, TurnFinished
 from lca.core.session import Session
 from lca.engine_mgmt.doctor import DoctorReport, run_doctor
@@ -403,6 +404,11 @@ def chat(
 
     async def _turn(text: str) -> None:
         await _stream_turn(agent, session, text)
+        used = estimate_used_tokens(session)
+        pct = min(100, round(used / session.token_budget * 100))
+        console.print(
+            f"[dim]🧠 context ~{used / 1000:.1f}K/{session.token_budget // 1000}K ({pct}%)[/]"
+        )
 
     while True:
         try:

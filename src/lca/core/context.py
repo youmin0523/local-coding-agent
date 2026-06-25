@@ -21,6 +21,21 @@ _CHARS_PER_TOKEN = 3
 # Cap the retrieved-grounding block so large code chunks can't crowd out the task,
 # history, and the model's room to reason.
 _GROUNDING_CHAR_CAP = 8000
+# Rough fixed cost of the system prompt + skills index + grounding, for the usage gauge.
+_SYSTEM_OVERHEAD_TOKENS = 1200
+
+
+def estimate_used_tokens(session: Session) -> int:
+    """Approximate tokens the conversation occupies (history + system overhead).
+
+    Char-based, like the builder's budgeter — a gauge, not an exact count. The
+    builder summarizes older turns when this nears the budget, so it plateaus.
+    """
+    history_chars = sum(
+        len(m.content or "") + sum(len(str(tc.arguments)) for tc in m.tool_calls)
+        for m in session.history
+    )
+    return history_chars // _CHARS_PER_TOKEN + _SYSTEM_OVERHEAD_TOKENS
 
 
 @dataclass

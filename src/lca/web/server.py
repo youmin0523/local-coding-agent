@@ -142,7 +142,10 @@ def create_app(
 
     @app.post("/api/runs")
     async def start_run(req: RunRequest) -> dict[str, str]:
-        return {"run_id": manager.start(req.message, req.mode)}
+        return {
+            "run_id": manager.start(req.message, req.mode),
+            "token_budget": str(session.token_budget),
+        }
 
     @app.get("/api/runs/{run_id}/events")
     async def events(run_id: str) -> EventSourceResponse:
