@@ -1,6 +1,6 @@
 # Reference catalog index
 
-69 cards across 10 categories — surfaced by the reference_docs tool (with fetch_url for live detail).
+94 cards across 12 categories — surfaced by the reference_docs tool (with fetch_url for live detail).
 
 ## db
 - [PostgreSQL](https://www.postgresql.org/docs/current/) — Use PostgreSQL as a general-purpose, ACID-compliant relational database when you need stro
@@ -77,6 +77,35 @@
 
 ## orm
 - [SQLAlchemy 2.0 (async)](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html) — Use when building non-blocking, IO-concurrent apps (e.g. asyncio/FastAPI services) that ne
+
+## recipe
+- [asyncio 'Event loop is closed' (pytest-asyncio 1.x async DB tests)](https://pytest-asyncio.readthedocs.io/en/stable/concepts.html) — 'RuntimeError: Event loop is closed' in pytest when testing FastAPI + SQLAlchemy async + a
+- [asyncpg / SQLAlchemy 'got Future attached to a different loop'](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html) — RuntimeError about a Future/Task attached to a different event loop, usually outside the w
+- [FastAPI + Vite/React: blocked by CORS policy](https://fastapi.tiangolo.com/tutorial/cors/) — Vite dev SPA (port 5173) cannot call the FastAPI backend (port 8000); browser console show
+- [FastAPI 422 Unprocessable Entity (request body validation)](https://fastapi.tiangolo.com/tutorial/dependencies/dependencies-with-yield/) — FastAPI returns HTTP 422 with a detail array; the request never reaches handler logic beca
+- [FastAPI async DB session dependency (leaks / blocking-in-async)](https://fastapi.tiangolo.com/tutorial/dependencies/dependencies-with-yield/) — Pool exhaustion, leaked DB connections, or poor concurrency in FastAPI; deciding between a
+- [Pydantic v1 -> v2 migration (orm_mode/from_orm/validator removed)](https://pydantic.dev/docs/validation/latest/get-started/migration/) — Errors/deprecation warnings after upgrading to Pydantic v2: from_orm/orm_mode, .dict()/.js
+- [Python circular import / partially initialized module (FastAPI projects)](https://docs.python.org/3/reference/import.html) — Startup-time ImportError 'cannot import name ... from partially initialized module (most l
+- [React 19: Hydration failed (server/client mismatch)](https://react.dev/reference/react-dom/client/hydrateRoot) — An SSR/SSG React app logs a hydration mismatch in the browser console.
+- [React useEffect: stale closure / missing dependency (exhaustive-deps)](https://react.dev/reference/react/useEffect) — Effect uses outdated state/props, or ESLint react-hooks/exhaustive-deps flags a missing de
+- [React/TS: Cannot read properties of undefined (reading 'map')](https://react.dev/learn/conditional-rendering) — Component throws a TypeError accessing a property/method (often .map) on data that is stil
+- [React: infinite re-render / Maximum update depth exceeded](https://react.dev/reference/react/useEffect) — Component re-renders endlessly or React throws 'Maximum update depth exceeded'.
+- [React: Rendered more hooks than during the previous render](https://react.dev/reference/rules/rules-of-hooks) — React component crashes on re-render with an Invariant Violation about hook count changing
+- [SQLAlchemy 2.0 async MissingGreenlet (greenlet_spawn has not been called)](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html) — MissingGreenlet / 'greenlet_spawn has not been called; can't call await_only() here' raise
+- [SQLAlchemy DetachedInstanceError / post-commit attribute access (async)](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html) — DetachedInstanceError ('not bound to a Session') or unexpected reload errors when touching
+- [Vite: import.meta.env.VITE_* is undefined](https://vite.dev/guide/env-and-mode) — Environment variables read as undefined via import.meta.env in a Vite + React app.
+
+## security
+- [OWASP A01:2025 — Broken Access Control / IDOR (BOLA)](https://owasp.org/Top10/2025/A01_2025-Broken_Access_Control/) — Any endpoint that loads/mutates a resource by ID, any admin/privileged route, or when a us
+- [OWASP A02:2025 — Security Misconfiguration & CORS (FastAPI)](https://owasp.org/Top10/2025/A02_2025-Security_Misconfiguration/) — Configuring CORSMiddleware, deploying to production, exposing API docs, or setting HTTP se
+- [OWASP A03:2025 — Software Supply Chain Failures (uv / npm deps)](https://owasp.org/Top10/2025/A03_2025-Software_Supply_Chain_Failures/) — Adding/updating Python or npm dependencies, setting up CI, or reviewing the dependency tre
+- [OWASP A04:2025 — Cryptographic Failures / Secrets Management](https://owasp.org/Top10/2025/A04_2025-Cryptographic_Failures/) — Handling any secret (DB connection string, JWT signing key, API keys), configuring TLS, or
+- [OWASP A05:2025 — Injection (SQLi in SQLAlchemy 2.0)](https://owasp.org/Top10/2025/A05_2025-Injection/) — Whenever building queries with any user-controlled value, especially raw SQL via text() or
+- [OWASP A06:2025 — Insecure Design / XSS & Input Validation (React + Pydantic)](https://owasp.org/Top10/2025/A06_2025-Insecure_Design/) — Rendering user-controlled content in React, designing validation strategy, or threat-model
+- [OWASP A07:2025 — Authentication Failures (JWT, Argon2/bcrypt)](https://owasp.org/Top10/2025/A07_2025-Authentication_Failures/) — Designing or reviewing login, token issuance/verification, password storage, session/refre
+- [OWASP A09:2025 — Security Logging & Alerting Failures](https://owasp.org/Top10/2025/A09_2025-Security_Logging_and_Alerting_Failures/) — Setting up logging/observability, incident-response readiness, or reviewing what gets reco
+- [OWASP API4:2023 — Unrestricted Resource Consumption / Rate Limiting (slowapi)](https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/) — Public/auth endpoints exposed to abuse, brute-force, or scraping; any endpoint returning l
+- [OWASP API7:2023 — Server-Side Request Forgery (SSRF)](https://owasp.org/API-Security/editions/2023/en/0xa7-server-side-request-forgery/) — Any feature where the server makes outbound requests to a URL influenced by the client (we
 
 ## testing
 - [pytest](https://docs.pytest.org/en/stable/) — Use pytest as the de-facto framework for writing and running automated tests in Python - f
