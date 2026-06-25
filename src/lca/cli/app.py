@@ -194,7 +194,7 @@ def chat(
 
     while True:
         try:
-            user_input = console.input("\n[bold green]you[/] › ").strip()
+            user_input = console.input("\n[bold green]you[/] > ").strip()
         except (EOFError, KeyboardInterrupt):
             console.print("\n[dim]bye[/]")
             break
