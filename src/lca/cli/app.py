@@ -26,7 +26,7 @@ from lca.config.settings import get_settings
 from lca.core.agent import Agent
 from lca.core.session import Session
 from lca.engine_mgmt.doctor import DoctorReport, run_doctor
-from lca.evaluation import default_tasks, load_tasks, run_eval
+from lca.evaluation import EvalTask, default_tasks, load_tasks, run_eval
 from lca.learning import LearnReport, export_sft, run_rollouts
 from lca.memory.store import MemoryStore
 from lca.observability.logging import configure_logging
@@ -49,7 +49,7 @@ console = Console()
 _DOMAIN_TASKS = Path("evals/user_domain_tasks.jsonl")
 
 
-def _resolve_tasks(tasks_file: str | None):
+def _resolve_tasks(tasks_file: str | None) -> list[EvalTask]:
     if tasks_file:
         return load_tasks(Path(tasks_file))
     if _DOMAIN_TASKS.exists():
