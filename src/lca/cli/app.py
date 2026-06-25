@@ -38,6 +38,7 @@ from lca.rag.indexer import Indexer
 from lca.rag.store import SqliteVectorStore
 from lca.routing.router import Router
 
+
 def _force_utf8_stdio() -> None:
     """Windows consoles default to a legacy codepage (cp949 on Korean Windows);
     force UTF-8 so Rich output (—, ✓, →, box-drawing) never raises
