@@ -12,6 +12,7 @@ from lca.tools.base import (
     ToolResult,
     ToolSpec,
 )
+from lca.tools.browser import BrowserCheckTool, BrowserScreenshotTool
 from lca.tools.code_exec import RunPythonTool
 from lca.tools.fs_read import read_tools
 from lca.tools.fs_write import write_tools
@@ -30,6 +31,8 @@ if TYPE_CHECKING:
 
 __all__ = [
     "Artifact",
+    "BrowserCheckTool",
+    "BrowserScreenshotTool",
     "FetchUrlTool",
     "ListSymbolsTool",
     "ReferenceDocsTool",
@@ -62,6 +65,8 @@ def build_default_registry(
         ListSymbolsTool(),
         ReferenceDocsTool(),
         SecretScanTool(),
+        BrowserScreenshotTool(),
+        BrowserCheckTool(),
         RunShellTool(),
         RunPythonTool(),
         RunChecksTool(),
