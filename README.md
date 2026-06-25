@@ -89,6 +89,7 @@ Watch progress with `lca stats`.
 engine endpoint is reachable before anything is built on top. See
 [`docs/runbook-gpu.md`](docs/runbook-gpu.md) for installing LM Studio and the models.
 
+**See it run — [`docs/demo.md`](docs/demo.md)** (captured web + CLI walkthrough).
 **Full walkthrough — [`docs/usage.md`](docs/usage.md).** Note: lca defaults to the
 engine on `:8080`; LM Studio serves `:1234`, so set
 `LCA_LLM__BASE_URL=http://127.0.0.1:1234/v1` (and `LCA_PROFILE=quality` for the 30B).
