@@ -24,15 +24,18 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from lca.assembly import build_agent
+from lca.config.settings import get_settings
 from lca.core.agent import Agent
 from lca.core.session import Session
 from lca.observability.logging import get_logger
 from lca.permissions.modes import AutonomyMode
+from lca.routing.router import Router
 from lca.web.approver import WebApprover
 
 log = get_logger("web.server")
 
-AgentBuilder = Callable[[WebApprover], Agent]
+# (approver, user_message) -> Agent, so the default builder can route by difficulty.
+AgentBuilder = Callable[[WebApprover, str], Agent]
 _FRONTEND = Path(__file__).parent / "frontend"
 
 
@@ -65,7 +68,7 @@ class RunManager:
         self._counter += 1
         run_id = f"run{self._counter}"
         approver = WebApprover()
-        agent = self._build(approver)
+        agent = self._build(approver, message)
         try:
             self._session.mode = AutonomyMode(mode)
         except ValueError:
@@ -103,13 +106,37 @@ class RunManager:
         return any(run.approver.resolve(request_id, approved) for run in self._runs.values())
 
 
+def _routing_builder() -> AgentBuilder:
+    """Default builder: route each message by difficulty (smart by default).
+
+    Respects the configured profile — the 30B brain is only used when profile is
+    "quality" (and thus loaded); otherwise it stays on the fast model but still
+    escalates verification / best-of-N for harder messages.
+    """
+    settings = get_settings()
+    brain = settings.profile == "quality"
+    router = Router(brain_available=brain)
+
+    def build(approver: WebApprover, message: str) -> Agent:
+        plan = router.plan(message)
+        return build_agent(
+            approver,
+            settings=settings,
+            model_logical=plan.model,
+            verify=plan.verify,
+            samples=plan.samples,
+        )
+
+    return build
+
+
 def create_app(
     *,
     workspace: Path,
     agent_builder: AgentBuilder | None = None,
 ) -> FastAPI:
     session = Session(workspace_root=workspace)
-    builder: AgentBuilder = agent_builder or (lambda approver: build_agent(approver))
+    builder: AgentBuilder = agent_builder or _routing_builder()
     manager = RunManager(session, builder)
     app = FastAPI(title="lca", version="0.1.0")
 

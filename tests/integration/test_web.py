@@ -30,7 +30,7 @@ def _collect(client: TestClient, run_id: str) -> list[dict]:
 
 
 def test_run_streams_tokens_and_finishes(tmp_path: Path):
-    def builder(approver):
+    def builder(approver, message):
         return Agent(
             FakeProvider([text_chunks("Hello from lca.")]),
             build_default_registry(enable_web=False),
@@ -48,7 +48,7 @@ def test_run_streams_tokens_and_finishes(tmp_path: Path):
 
 
 def test_autonomous_run_executes_tool_via_web(tmp_path: Path):
-    def builder(approver):
+    def builder(approver, message):
         return Agent(
             FakeProvider(
                 [
@@ -72,13 +72,13 @@ def test_autonomous_run_executes_tool_via_web(tmp_path: Path):
 
 
 def test_approval_endpoint_unknown_id_returns_false(tmp_path: Path):
-    client = TestClient(create_app(workspace=tmp_path, agent_builder=lambda a: _noop_agent(a)))
+    client = TestClient(create_app(workspace=tmp_path, agent_builder=lambda a, m: _noop_agent(a)))
     resp = client.post("/api/approvals/nope", json={"approved": True})
     assert resp.json() == {"resolved": False}
 
 
 def test_events_unknown_run_404(tmp_path: Path):
-    client = TestClient(create_app(workspace=tmp_path, agent_builder=lambda a: _noop_agent(a)))
+    client = TestClient(create_app(workspace=tmp_path, agent_builder=lambda a, m: _noop_agent(a)))
     assert client.get("/api/runs/nope/events").status_code == 404
 
 

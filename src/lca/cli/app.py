@@ -127,7 +127,7 @@ def ask(
         False, "--verify", help="Verify the final answer (deliver-or-abstain)."
     ),
     route: bool = typer.Option(
-        False, "--route", help="Auto-pick model + verification by difficulty."
+        True, "--route/--no-route", help="Auto-pick model + verification by difficulty."
     ),
     no_memory: bool = typer.Option(False, "--no-memory", help="Disable experience memory."),
 ) -> None:
@@ -141,7 +141,8 @@ def ask(
     do_verify = verify
     samples = 1
     if route:
-        rp = Router().plan(prompt)
+        # The 30B brain is only routed to when profile=quality (and thus loaded).
+        rp = Router(brain_available=settings.profile == "quality").plan(prompt)
         model_logical = rp.model
         do_verify = do_verify or rp.verify
         samples = rp.samples
