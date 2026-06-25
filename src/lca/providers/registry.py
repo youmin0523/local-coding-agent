@@ -14,22 +14,26 @@ from lca.config.settings import Settings, get_settings
 from lca.providers.base import LLMProvider
 from lca.providers.llamacpp import LlamaCppProvider
 from lca.providers.openai_compat import OpenAICompatProvider
+from lca.providers.retry import RetryingProvider
 
 EngineKind = Literal["llamacpp", "ollama", "openai-compat"]
 LogicalModel = Literal["brain", "fast"]
 
 
 def build_provider(
-    settings: Settings | None = None, *, engine: EngineKind = "llamacpp"
+    settings: Settings | None = None, *, engine: EngineKind = "llamacpp", retries: int = 3
 ) -> LLMProvider:
     settings = settings or get_settings()
     url = settings.llm.base_url
     key = settings.llm.api_key
     timeout = settings.llm.request_timeout_s
-    if engine == "llamacpp":
-        return LlamaCppProvider(url, key, timeout)
-    # Ollama and other OpenAI-compatible servers: same wire format, no grammar.
-    return OpenAICompatProvider(url, key, timeout)
+    inner: LLMProvider = (
+        LlamaCppProvider(url, key, timeout)
+        if engine == "llamacpp"
+        # Ollama and other OpenAI-compatible servers: same wire format, no grammar.
+        else OpenAICompatProvider(url, key, timeout)
+    )
+    return RetryingProvider(inner, attempts=retries) if retries > 1 else inner
 
 
 def resolve_model(logical: LogicalModel, settings: Settings | None = None) -> str:

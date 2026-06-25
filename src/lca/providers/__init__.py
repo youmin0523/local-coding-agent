@@ -12,6 +12,7 @@ from lca.providers.fake import FakeProvider
 from lca.providers.llamacpp import LlamaCppProvider
 from lca.providers.openai_compat import OpenAICompatProvider
 from lca.providers.registry import build_provider, resolve_model
+from lca.providers.retry import RetryingProvider
 
 __all__ = [
     "ChatChunk",
@@ -22,6 +23,7 @@ __all__ = [
     "OpenAICompatProvider",
     "ProviderCaps",
     "ProviderHealth",
+    "RetryingProvider",
     "ToolSchema",
     "build_provider",
     "resolve_model",
