@@ -19,6 +19,17 @@ PYTHONPATH), after which the 7B solved it cleanly in 2 steps.
   verify + best-of-N), respecting the loaded model profile.
 - **M17 `list_symbols`** — instant AST outline (classes/functions+lines) for fast analysis.
 - **M18 Long-session memory** — summarizes dropped older turns to keep continuity.
+- **M19 `lca stats`** — visualize accumulated learning (verified experiences + chunks).
+- **M20 MCP wired** — `lca mcp` / `ask --mcp` connect filesystem/git/fetch servers into the registry.
+- **M21 `lca learn` (RLVR)** — rollout → execution/verification reward → keep verified → export
+  SFT corpus for the optional QLoRA gradient step. The concrete on-device RL/DL loop.
+- **M22 Learn from failure** — abstentions store ReasoningBank "caution" lessons (safe, no
+  fabricated solutions) that surface on similar future tasks.
+- **M23 Engine resilience** — RetryingProvider retries transient pre-stream failures (never mid-stream).
+- **M24 Config visibility** — `lca config`; `doctor` warns on model-id mismatch.
+
+~97 tests, all green; mypy --strict / ruff / import-linter clean. Commands:
+`doctor · config · stats · index · ask · chat · web · mcp · learn · eval · version`.
 
 ## TL;DR
 - A complete, working **local coding agent** (`lca`) — CLI **and** web UI — with the
