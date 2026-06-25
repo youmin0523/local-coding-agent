@@ -40,9 +40,12 @@ the 7B model.
 - **Apply any tech** via a local, cited **reference knowledge base** (`reference_docs`):
   ~150 cards spanning languages, frameworks, libraries, deployment, error→fix
   recipes, OWASP security, and UI/UX design — backed by `docs/`.
+- **Generate office documents** — Word (`.docx`), PowerPoint (`.pptx`), and Excel
+  (`.xlsx`) via bundled skills (python-docx / python-pptx / openpyxl).
 - **Agent Skills** — loads Claude-compatible `SKILL.md` files (progressive
   disclosure + a `use_skill` tool); ships skills for normalized schemas, secure
-  endpoints, accessible components, log triage, debugging, and deployment.
+  endpoints, accessible components, log triage, debugging, deployment, and
+  document/slide/spreadsheet generation.
 - **MCP** client (filesystem/git/fetch) — native + MCP tools in one registry.
 
 ## Hardware target

@@ -36,6 +36,7 @@ web = [
 mcp = ["mcp>=1.2.0"]
 search = ["ddgs>=9.0.0", "trafilatura>=1.12.0"]
 browser = ["playwright>=1.45.0"]
+office = ["python-docx>=1.1.0", "python-pptx>=0.6.23", "openpyxl>=3.1.0"]
 agent = ["pydantic-ai>=0.0.14"]
 
 [project.scripts]

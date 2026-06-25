@@ -1,6 +1,6 @@
 # Reference catalog index
 
-148 cards across 14 categories — surfaced by the reference_docs tool (with fetch_url for live detail).
+151 cards across 14 categories — surfaced by the reference_docs tool (with fetch_url for live detail).
 
 ## db
 - [PostgreSQL](https://www.postgresql.org/docs/current/) — Use PostgreSQL as a general-purpose, ACID-compliant relational database when you need stro
@@ -87,6 +87,7 @@
 - [numpy](https://numpy.org/doc/stable/) — Foundational n-dimensional array and numerical computing layer for almost all Python scien
 - [onnxruntime](https://onnxruntime.ai/docs/) — Use ONNX Runtime for fast, portable inference of trained models exported to ONNX, across C
 - [opencv-python](https://docs.opencv.org/4.x/) — Choose for fast, classical computer vision and image/video processing: filtering, transfor
+- [openpyxl](https://openpyxl.readthedocs.io/en/stable/) — Create or edit Excel .xlsx workbooks (sheets, formulas, formatting, charts) in Python. For
 - [pandas](https://pandas.pydata.org/docs/) — The default for labeled, heterogeneous tabular data analysis, ETL, and time series in Pyth
 - [pillow](https://pillow.readthedocs.io/en/stable/) — Pick Pillow for straightforward image loading/saving, format conversion, thumbnails, cropp
 - [polars](https://docs.pola.rs/) — Choose polars for fast, memory-efficient DataFrame work on medium-to-large data, lazy/opti
@@ -94,6 +95,8 @@
 - [prisma](https://www.prisma.io/docs) — Choose Prisma when you want a mature, declarative schema with auto-generated migrations, P
 - [pytest-asyncio](https://pytest-asyncio.readthedocs.io/) — Choose pytest-asyncio when your code uses the stdlib asyncio event loop and you want to wr
 - [pytest-cov](https://pytest-cov.readthedocs.io/) — Choose pytest-cov to integrate coverage.py measurement and CI gating directly into a pytes
+- [python-docx](https://python-docx.readthedocs.io/en/latest/) — Generate or edit Microsoft Word .docx files (reports, letters, minutes) in Python. Pure-py
+- [python-pptx](https://python-pptx.readthedocs.io/en/latest/) — Generate PowerPoint .pptx decks (title/content slides, bullets, tables, images) in Python 
 - [pytorch](https://pytorch.org/docs/stable/) — Primary framework for deep learning research and production: building/training neural netw
 - [react-hook-form](https://react-hook-form.com/) — Choose React Hook Form for performant React forms where minimizing re-renders matters; it 
 - [recharts](https://recharts.org/) — Choose Recharts for standard React dashboard charts (line, bar, area, pie, scatter) with a

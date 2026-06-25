@@ -61,6 +61,9 @@ def test_bundled_skills_present():
         "summarize-logs",
         "debug-from-traceback",
         "deploy-web-app",
+        "create-docx",
+        "create-pptx",
+        "create-xlsx",
     } <= names
     # Every bundled skill must satisfy the spec (valid name + non-empty body).
     assert all(s.body.strip() for s in skills)
