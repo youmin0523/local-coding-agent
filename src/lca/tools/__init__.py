@@ -19,6 +19,7 @@ from lca.tools.reference import ReferenceDocsTool
 from lca.tools.registry import ToolRegistry
 from lca.tools.run_checks import RunChecksTool
 from lca.tools.search_code import SearchCodeTool
+from lca.tools.secret_scan import SecretScanTool
 from lca.tools.shell import RunShellTool
 from lca.tools.symbols import ListSymbolsTool
 from lca.tools.web.fetch import FetchUrlTool
@@ -37,6 +38,7 @@ __all__ = [
     "RunPythonTool",
     "RunShellTool",
     "SearchCodeTool",
+    "SecretScanTool",
     "Tool",
     "ToolContext",
     "ToolRegistry",
@@ -59,6 +61,7 @@ def build_default_registry(
         *write_tools(),
         ListSymbolsTool(),
         ReferenceDocsTool(),
+        SecretScanTool(),
         RunShellTool(),
         RunPythonTool(),
         RunChecksTool(),

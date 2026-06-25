@@ -12,7 +12,9 @@ from lca.tools.reference import ReferenceDocsTool
 
 
 def _ctx(ws: Path) -> ToolContext:
-    return ToolContext(workspace_root=ws, approver=AutoApprover(), session=Session(workspace_root=ws))
+    return ToolContext(
+        workspace_root=ws, approver=AutoApprover(), session=Session(workspace_root=ws)
+    )
 
 
 def test_catalog_loads():
