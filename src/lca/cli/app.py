@@ -169,6 +169,42 @@ def ask(
 
 
 @app.command()
+def chat(
+    path: str = typer.Option(".", "--path", "-C", help="Workspace directory."),
+    auto: bool = typer.Option(False, "--auto", help="Autonomous mode."),
+    verify: bool = typer.Option(False, "--verify", help="Verify answers (deliver-or-abstain)."),
+) -> None:
+    """Interactive multi-turn chat (one persistent session). Ctrl-D / 'exit' to quit."""
+    settings = get_settings()
+    configure_logging(settings.log.format, settings.log.level)
+    workspace = Path(path).resolve()
+    mode = AutonomyMode.AUTONOMOUS if auto else AutonomyMode.GATED
+    model_logical: Literal["brain", "fast"] = "brain" if settings.profile == "quality" else "fast"
+    agent = build_agent(
+        CliApprover(console), settings=settings, model_logical=model_logical, verify=verify
+    )
+    session = Session(
+        workspace_root=workspace, mode=mode, token_budget=settings.llm.max_context_tokens
+    )
+    console.print("[dim]lca chat — type 'exit' or Ctrl-D to quit.[/]")
+
+    async def _turn(text: str) -> None:
+        async for event in agent.run_turn(session, text):
+            render_event(console, event)
+
+    while True:
+        try:
+            user_input = console.input("\n[bold green]you[/] › ").strip()
+        except (EOFError, KeyboardInterrupt):
+            console.print("\n[dim]bye[/]")
+            break
+        if user_input.lower() in {"exit", "quit", ":q"}:
+            break
+        if user_input:
+            asyncio.run(_turn(user_input))
+
+
+@app.command()
 def web(
     path: str = typer.Option(".", "--path", "-C", help="Workspace directory."),
     host: str = typer.Option("127.0.0.1", help="Bind host."),
