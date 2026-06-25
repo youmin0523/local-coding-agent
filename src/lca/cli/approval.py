@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 from rich.console import Console
 from rich.prompt import Prompt
 
@@ -19,6 +21,14 @@ class CliApprover:
     async def request(self, call: ToolCall, risk: RiskLevel) -> bool:
         if call.name in self._allow_cache:
             return True
+        # Fail safe: with no interactive terminal (piped / background run) we cannot
+        # ask, so deny rather than hang forever. Use --auto for unattended runs.
+        if not sys.stdin.isatty():
+            self._console.print(
+                f"[yellow]Auto-denied[/] {call.name} ({risk.name}): no interactive terminal "
+                "(use --auto for unattended runs)."
+            )
+            return False
         self._console.print(
             f"\n[yellow]Approval required[/] · [bold]{call.name}[/] "
             f"([red]{risk.name}[/]) args={call.arguments}"
