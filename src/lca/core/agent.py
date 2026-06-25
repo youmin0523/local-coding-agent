@@ -229,6 +229,11 @@ class Agent:
             if verdict_kind == "uncertain"
             else "Verification found problems with this answer."
         )
+        if self._memory is not None:  # learn from the failure (ReasoningBank caution)
+            try:
+                await self._memory.note_caution(task, "; ".join(sigs[:2]) or reason)
+            except Exception as exc:
+                log.warning("agent.caution_failed", error=str(exc))
         yield Abstained(reason=reason, options=sigs)
         yield TurnFinished(stop_reason="abstained", content=answer)
 

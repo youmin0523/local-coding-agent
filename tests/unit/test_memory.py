@@ -34,6 +34,14 @@ async def test_remember_only_when_verified():
     assert recalled and "the answer" in recalled[0]
 
 
+async def test_note_caution_stores_a_lesson():
+    mem = _mem()
+    await mem.note_caution("solve the very hard widget problem", "judges disagreed")
+    recalled = await mem.recall("hard widget problem")
+    assert recalled
+    assert "caution" in recalled[0].lower()
+
+
 async def test_recall_is_bounded():
     mem = ExperienceMemory(MemoryStore(":memory:"), HashingEmbedder(), recall_k=2)
     for i in range(5):

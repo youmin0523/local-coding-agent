@@ -29,7 +29,7 @@ class RetrievedContext:
         blocks: list[str] = []
         if self.experiences:
             joined = "\n".join(f"- {e}" for e in self.experiences)
-            blocks.append(f"Relevant verified experiences from past work:\n{joined}")
+            blocks.append(f"Relevant verified experiences and lessons from past work:\n{joined}")
         if self.code_snippets:
             joined = "\n\n".join(self.code_snippets)
             blocks.append(f"Relevant code from the workspace:\n{joined}")

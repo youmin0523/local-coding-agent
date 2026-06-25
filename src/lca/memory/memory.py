@@ -28,6 +28,8 @@ class Memory(Protocol):
 
     async def remember(self, task: str, answer: str, *, verified: bool) -> None: ...
 
+    async def note_caution(self, task: str, reason: str) -> None: ...
+
 
 class ExperienceMemory:
     def __init__(self, store: MemoryStore, embedder: Embedder, *, recall_k: int = 2) -> None:
@@ -50,6 +52,26 @@ class ExperienceMemory:
         vector = self._embedder.embed([f"{item.title}\n{item.content}"])[0]
         self._store.add(item, vector)
         log.info("memory.remembered", title=item.title[:60])
+
+    async def note_caution(self, task: str, reason: str) -> None:
+        """Learn from a failure/abstention — store a *lesson* (not a fabricated solution).
+
+        Safe under the anti-poisoning rule: a caution records "this was hard to verify,
+        check first", never an unverified answer.
+        """
+        first = next((ln for ln in task.strip().splitlines() if ln.strip()), "task")
+        item = MemoryItem(
+            kind="strategy",
+            title=f"caution: {first.strip()[:100]}",
+            content=(
+                f"A prior attempt at this could not be verified ({reason[:160]}). "
+                "Gather evidence and run checks before asserting an answer."
+            ),
+            source="caution",
+        )
+        vector = self._embedder.embed([f"{item.title}\n{item.content}"])[0]
+        self._store.add(item, vector)
+        log.info("memory.caution", title=item.title[:60])
 
 
 def _distill(task: str, answer: str) -> MemoryItem:

@@ -22,6 +22,11 @@ class _PassVerifier:
         return Verdict(verdict="pass", confidence=0.9)
 
 
+class _UncertainVerifier:
+    async def verify_answer(self, task: str, answer: str) -> Verdict:
+        return Verdict(verdict="uncertain", confidence=0.2, signals=["correctness: concern"])
+
+
 async def test_recall_injected_into_context(workspace: Path):
     mem = ExperienceMemory(MemoryStore(":memory:"), HashingEmbedder())
     await mem.remember("fix the tax bug", "I divided by the rate; verified by tests", verified=True)
@@ -78,6 +83,26 @@ async def test_grounded_turn_auto_remembered_without_verifier(workspace: Path):
     events = await drain(agent.run_turn(Session(workspace_root=workspace), "run a quick script"))
     assert store.count() == 1  # grounded by executed code → learned automatically
     assert first_of(events, "verification") is not None
+
+
+async def test_abstain_records_a_caution_lesson(workspace: Path):
+    store = MemoryStore(":memory:")
+    mem = ExperienceMemory(store, HashingEmbedder())
+    provider = FakeProvider([text_chunks("maybe the answer is 42")])
+    agent = Agent(
+        provider,
+        build_default_registry(enable_web=False),
+        DefaultPolicy(),
+        AutoApprover(),
+        model="fake",
+        verifier=_UncertainVerifier(),
+        memory=mem,
+    )
+    events = await drain(agent.run_turn(Session(workspace_root=workspace), "guess the secret"))
+    assert first_of(events, "abstain") is not None
+    assert store.count() == 1  # learned a caution from the failure (no fabricated answer)
+    recalled = await mem.recall("secret")
+    assert "caution" in recalled[0].lower()
 
 
 async def test_ungrounded_turn_not_remembered(workspace: Path):
