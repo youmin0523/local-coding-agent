@@ -10,11 +10,11 @@ from lca.core.session import Session
 
 
 def test_recent_history_kept_and_old_summarized(tmp_path: Path):
-    session = Session(workspace_root=tmp_path, token_budget=200)  # tiny budget
-    # many turns; older ones won't fit
-    for i in range(8):
-        session.add(Message.user(f"task number {i} about widgets and gadgets " + "x" * 50))
-        session.add(Message.assistant(f"answer {i} " + "y" * 50))
+    session = Session(workspace_root=tmp_path, token_budget=600)  # ~2400 char budget
+    # many large turns so the oldest exceed the budget and get dropped
+    for i in range(12):
+        session.add(Message.user(f"task number {i} about widgets and gadgets " + "x" * 300))
+        session.add(Message.assistant(f"answer {i} " + "y" * 300))
 
     messages = ContextBuilder().build(session, "what now?")
     system = messages[0].content or ""
