@@ -64,6 +64,8 @@ def test_bundled_skills_present():
         "create-docx",
         "create-pptx",
         "create-xlsx",
+        "write-markdown",
+        "create-diagram",
     } <= names
     # Every bundled skill must satisfy the spec (valid name + non-empty body).
     assert all(s.body.strip() for s in skills)

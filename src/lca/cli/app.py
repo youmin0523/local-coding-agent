@@ -9,6 +9,7 @@ intelligence always lives below `core/`.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import sys
 from pathlib import Path
 from typing import Literal
@@ -21,10 +22,12 @@ from rich.table import Table
 from lca import __version__
 from lca.assembly import attach_mcp, build_agent
 from lca.cli.approval import CliApprover
+from lca.cli.clipboard import copy_to_clipboard
 from lca.cli.render import render_event
 from lca.config.paths import index_db_path, memory_db_path
 from lca.config.settings import get_settings
 from lca.core.agent import Agent
+from lca.core.events import TokenDelta, TurnFinished
 from lca.core.session import Session
 from lca.engine_mgmt.doctor import DoctorReport, run_doctor
 from lca.evaluation import EvalTask, default_tasks, load_tasks, run_eval
@@ -46,10 +49,8 @@ def _force_utf8_stdio() -> None:
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:
-            try:
+            with contextlib.suppress(ValueError, OSError):  # redirected/closed stream
                 reconfigure(encoding="utf-8")
-            except (ValueError, OSError):  # pragma: no cover - redirected/closed stream
-                pass
 
 
 _force_utf8_stdio()
@@ -203,6 +204,8 @@ def ask(
     mcp: bool = typer.Option(
         False, "--mcp", help="Connect local MCP servers (filesystem/git/fetch)."
     ),
+    copy: bool = typer.Option(False, "--copy", help="Copy the final answer to the clipboard."),
+    md: str = typer.Option("", "--md", help="Also save the final answer to this .md file."),
 ) -> None:
     """Run a single agent turn against the local engine."""
     settings = get_settings()
@@ -235,18 +238,34 @@ def ask(
         workspace_root=workspace, mode=mode, token_budget=settings.llm.max_context_tokens
     )
 
-    async def _run() -> None:
+    async def _run() -> str:
         manager = await attach_mcp(agent, str(workspace)) if mcp else None
         if manager is not None:
             console.print(f"[dim]MCP: {len(agent.registry)} tools available[/]")
+        parts: list[str] = []
+        final = ""
         try:
             async for event in agent.run_turn(session, prompt):
                 render_event(console, event)
+                if isinstance(event, TokenDelta):
+                    parts.append(event.text)
+                elif isinstance(event, TurnFinished):
+                    final = event.content or "".join(parts)
         finally:
             if manager is not None:
                 await manager.aclose()
+        return final or "".join(parts)
 
-    asyncio.run(_run())
+    answer = asyncio.run(_run())
+    if md and answer:
+        out_path = Path(md)
+        out_path.write_text(answer, encoding="utf-8")
+        console.print(f"[green]Saved[/] answer to {out_path}")
+    if copy and answer:
+        ok = copy_to_clipboard(answer)
+        console.print(
+            "[green]Copied to clipboard.[/]" if ok else "[yellow]Clipboard unavailable.[/]"
+        )
 
 
 @app.command(name="mcp")
