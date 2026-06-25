@@ -33,6 +33,17 @@ async def test_run_python_reports_failure(tmp_path: Path):
     assert "ValueError" in res.content and "boom" in res.content
 
 
+async def test_run_python_can_import_workspace_module(tmp_path: Path):
+    # Regression: the snippet runs from a temp dir, so the workspace must be on
+    # PYTHONPATH for `import <workspace module>` to work (found via live test).
+    (tmp_path / "mymod.py").write_text("VALUE = 7\n", "utf-8")
+    res = await RunPythonTool().run(
+        {"code": "import mymod; print(mymod.VALUE * 6)"}, _ctx(tmp_path)
+    )
+    assert res.ok
+    assert "42" in res.content
+
+
 async def test_run_checks_passing_tests_are_ground_truth(tmp_path: Path):
     (tmp_path / "test_sample.py").write_text("def test_ok():\n    assert 1 + 1 == 2\n", "utf-8")
     ctx = _ctx(tmp_path, sandbox=SandboxRunner(tmp_path, timeout_s=120))

@@ -91,6 +91,12 @@ ignore_missing_imports = true
 module = ["lca.rag.watcher"]
 disallow_subclassing_any = false
 
+# tree-sitter ships py.typed but its stubs vary across versions; treat as untyped
+# so the AST chunker isn't coupled to a specific stub revision.
+[[tool.mypy.overrides]]
+module = ["tree_sitter", "tree_sitter_language_pack"]
+follow_imports = "skip"
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

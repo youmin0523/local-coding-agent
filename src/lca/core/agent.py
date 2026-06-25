@@ -49,6 +49,26 @@ if TYPE_CHECKING:
 log = get_logger("core.agent")
 
 
+class _Signals:
+    """Per-turn grounding signals used to decide automatic learning.
+
+    ``truth_ok`` is set when an execution-oracle tool (run_checks) passed;
+    ``cited`` is set when a tool produced a citation (web fetch/search). Either
+    means the answer is grounded enough to learn from without an LLM judge.
+    """
+
+    __slots__ = ("cited", "executed_ok", "truth_ok")
+
+    def __init__(self) -> None:
+        self.truth_ok = False  # run_checks (tests/types/lint) passed
+        self.executed_ok = False  # code/command ran successfully (run_python/run_shell)
+        self.cited = False  # a web citation was produced
+
+    @property
+    def grounded(self) -> bool:
+        return self.truth_ok or self.executed_ok or self.cited
+
+
 class Agent:
     def __init__(
         self,
@@ -92,6 +112,7 @@ class Agent:
             timeout_s=self._sandbox_timeout,
             no_network=self._no_network,
         )
+        signals = _Signals()
 
         for _ in range(self._max_iter):
             req = ChatRequest(
@@ -122,21 +143,46 @@ class Agent:
             messages.append(assistant)
 
             if not calls:
-                async for ev in self._finalize(user_input, text):
+                async for ev in self._finalize(user_input, text, signals):
                     yield ev
                 return
 
             for call in calls:
-                async for ev in self._handle_call(call, session, sandbox, messages):
+                async for ev in self._handle_call(call, session, sandbox, messages, signals):
                     yield ev
 
         yield TurnFinished(stop_reason="budget", content="Stopped: tool-iteration limit reached.")
 
-    async def _finalize(self, task: str, answer: str) -> AsyncIterator[AgentEvent]:
-        """Run the verification gate on the final answer; deliver or abstain."""
-        if self._verifier is None or not answer.strip():
+    async def _finalize(
+        self, task: str, answer: str, signals: _Signals
+    ) -> AsyncIterator[AgentEvent]:
+        """Verify the final answer, deliver-or-abstain, and learn from grounded results."""
+        if not answer.strip():
             yield TurnFinished(stop_reason="complete", content=answer)
             return
+
+        # Strong path: an explicit verifier (LLM judges + optional execution signal).
+        if self._verifier is not None:
+            async for ev in self._finalize_with_verifier(task, answer):
+                yield ev
+            return
+
+        # Continuous-learning path: no judge, but the turn was grounded by execution
+        # or citations — trustworthy enough to remember automatically.
+        if self._memory is not None and signals.grounded:
+            source = (
+                "passing checks"
+                if signals.truth_ok
+                else "executed code"
+                if signals.executed_ok
+                else "cited sources"
+            )
+            yield VerificationResult(verdict="pass", confidence=0.7, detail=f"grounded by {source}")
+            await self._remember(task, answer)
+        yield TurnFinished(stop_reason="complete", content=answer)
+
+    async def _finalize_with_verifier(self, task: str, answer: str) -> AsyncIterator[AgentEvent]:
+        assert self._verifier is not None
         try:
             verdict = await self._verifier.verify_answer(task, answer)
         except Exception as exc:  # verification must never crash a turn
@@ -151,11 +197,7 @@ class Agent:
             verdict=verdict.verdict, confidence=verdict.confidence, detail=verdict.rationale
         )
         if verdict.verdict == "pass":
-            if self._memory is not None:
-                try:
-                    await self._memory.remember(task, answer, verified=True)
-                except Exception as exc:  # remembering must never break a turn
-                    log.warning("agent.remember_failed", error=str(exc))
+            await self._remember(task, answer)
             yield TurnFinished(stop_reason="complete", content=answer)
             return
         reason = (
@@ -166,12 +208,21 @@ class Agent:
         yield Abstained(reason=reason, options=verdict.signals)
         yield TurnFinished(stop_reason="abstained", content=answer)
 
+    async def _remember(self, task: str, answer: str) -> None:
+        if self._memory is None:
+            return
+        try:
+            await self._memory.remember(task, answer, verified=True)
+        except Exception as exc:  # remembering must never break a turn
+            log.warning("agent.remember_failed", error=str(exc))
+
     async def _handle_call(
         self,
         call: ToolCall,
         session: Session,
         sandbox: SandboxRunner,
         messages: list[Message],
+        signals: _Signals,
     ) -> AsyncIterator[AgentEvent]:
         try:
             tool = self._registry.get(call.name)
@@ -215,6 +266,13 @@ class Agent:
             log.exception("agent.tool_error", tool=call.name)
             result = ToolResult.error(f"tool raised {type(exc).__name__}: {exc}")
         yield ToolFinished(call_id=call.id, name=call.name, result=result)
+        if result.ok:
+            if result.is_truth:
+                signals.truth_ok = True  # run_checks passed: strongest signal
+            if call.name in ("run_python", "run_shell"):
+                signals.executed_ok = True
+        if any(a.kind == "citation" for a in result.artifacts):
+            signals.cited = True
         self._feed(messages, session, call, result.content or ("ok" if result.ok else "failed"))
 
     @staticmethod

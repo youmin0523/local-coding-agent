@@ -119,8 +119,14 @@ class SandboxRunner:
         with tempfile.TemporaryDirectory(prefix="lca_exec_") as tmp:
             snippet = Path(tmp) / "snippet.py"
             snippet.write_text(code, encoding="utf-8")
+            # Put the workspace on PYTHONPATH so the snippet can import the user's
+            # modules (e.g. `import fib` after writing fib.py) — the script itself
+            # lives in a temp dir, so cwd alone is not enough.
             return await self.run_command(
-                [sys.executable, str(snippet)], cwd=self._root, timeout_s=timeout_s
+                [sys.executable, str(snippet)],
+                cwd=self._root,
+                timeout_s=timeout_s,
+                env_extra={"PYTHONPATH": str(self._root)},
             )
 
     def _truncate(self, raw: bytes) -> str:
