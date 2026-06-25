@@ -65,3 +65,22 @@ uv run lca web        # browser UI at http://127.0.0.1:8765
 
 If tok/s feels like single digits with no VRAM used, you're on CPU fallback —
 revisit steps 1–2 (this is the thing to catch early).
+
+## 4. (Optional) Speculative decoding — make the 30B faster
+
+The brain (30B-A3B, partly CPU-offloaded) runs ~12-15 tok/s. **Speculative decoding**
+uses the small 7B as a *draft*: it proposes a few tokens, the 30B verifies them in
+one batched pass, and accepted tokens are nearly free. Output is identical to the
+30B alone, but throughput typically rises ~1.5-2x. That headroom is what makes the
+router's best-of-N (up to 5 candidates on hard tasks) practical.
+
+- **LM Studio**: in the model's load settings, enable *Speculative Decoding* and
+  pick the 7B (`qwen2.5-coder-7b-instruct`) as the draft model for the 30B.
+- **llama-server**: load a draft model alongside the main one, e.g.
+  `llama-server -m qwen3-coder-30b-a3b.gguf -md qwen2.5-coder-7b.gguf --draft-max 16
+  --draft-min 1 -ngl 99 --n-cpu-moe ...`. The draft should be small and share the
+  tokenizer family (Qwen <-> Qwen here).
+
+Trade-off: both models occupy memory at once. On 8 GB, keep the 7B draft on GPU and
+the 30B experts on CPU (`--n-cpu-moe`); watch VRAM with `lca doctor`. If it doesn't
+fit, skip it — it's a speed optimization, not a correctness requirement.
