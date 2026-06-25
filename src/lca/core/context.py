@@ -48,23 +48,43 @@ class ContextBuilder:
         if grounding:
             system += "\n\n" + grounding
 
-        messages: list[Message] = [Message.system(system)]
         budget_chars = max(2000, session.token_budget * _CHARS_PER_TOKEN - len(system))
-        history = self._trim(session.history, budget_chars)
-        messages.extend(history)
+        kept, dropped = self._trim(session.history, budget_chars)
+        if dropped:
+            # Don't silently lose old turns — keep a compact summary for continuity.
+            system += "\n\n" + self._summarize(dropped)
+
+        messages: list[Message] = [Message.system(system)]
+        messages.extend(kept)
         messages.append(Message.user(user_input))
         return messages
 
     @staticmethod
-    def _trim(history: list[Message], budget_chars: int) -> list[Message]:
-        """Keep the most recent messages that fit in the budget."""
+    def _trim(history: list[Message], budget_chars: int) -> tuple[list[Message], list[Message]]:
+        """Split history into (kept-recent, dropped-older) under the char budget."""
         kept: list[Message] = []
         used = 0
-        for msg in reversed(history):
+        cutoff = 0
+        for i, msg in enumerate(reversed(history)):
             size = len(msg.content or "") + sum(len(str(tc.arguments)) for tc in msg.tool_calls)
             if used + size > budget_chars and kept:
+                cutoff = len(history) - i
                 break
             kept.append(msg)
             used += size
         kept.reverse()
-        return kept
+        return kept, history[:cutoff]
+
+    @staticmethod
+    def _summarize(dropped: list[Message]) -> str:
+        """A cheap, LLM-free recap of earlier turns (the user's past requests)."""
+        asks = [
+            (m.content or "").strip().splitlines()[0][:100]
+            for m in dropped
+            if m.role == "user" and m.content
+        ]
+        if not asks:
+            return ""
+        recent = asks[-5:]
+        lines = "\n".join(f"- {a}" for a in recent)
+        return f"Earlier in this session you worked on:\n{lines}"
