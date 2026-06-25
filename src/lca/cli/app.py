@@ -27,7 +27,7 @@ from lca.cli.render import render_event
 from lca.config.paths import index_db_path, memory_db_path
 from lca.config.settings import Settings, get_settings
 from lca.core.agent import Agent
-from lca.core.events import TokenDelta, TurnFinished
+from lca.core.events import TokenDelta, ToolFinished, TurnFinished
 from lca.core.session import Session
 from lca.engine_mgmt.doctor import DoctorReport, run_doctor
 from lca.evaluation import EvalTask, default_tasks, load_tasks, run_eval
@@ -88,6 +88,38 @@ async def _probe_disagreement(settings: Settings, prompt: str) -> float:
         return await probe_disagreement(sample_once, k=2)
     except Exception:  # a probe failure must never block the turn
         return 0.0
+
+
+async def _stream_turn(agent: Agent, session: Session, text: str) -> str:
+    """Render a turn with a live 'thinking' spinner; return the final answer text.
+
+    The spinner shows while waiting for the model (before the first token, and again
+    after each tool while it generates the next step), so it's always clear the agent
+    is working — even on the slow 30B.
+    """
+    parts: list[str] = []
+    final = ""
+    spinner = console.status("[dim]생각 중…[/]", spinner="dots")
+    spinner.start()
+    active = True
+    try:
+        async for event in agent.run_turn(session, text):
+            if active:
+                spinner.stop()
+                active = False
+            render_event(console, event)
+            if isinstance(event, TokenDelta):
+                parts.append(event.text)
+            elif isinstance(event, TurnFinished):
+                final = event.content or "".join(parts)
+            elif isinstance(event, ToolFinished):
+                spinner.update("[dim]결과 분석 중…[/]")
+                spinner.start()
+                active = True
+    finally:
+        if active:
+            spinner.stop()
+    return final or "".join(parts)
 
 
 def _resolve_tasks(tasks_file: str | None) -> list[EvalTask]:
@@ -278,19 +310,11 @@ def ask(
         manager = await attach_mcp(agent, str(workspace)) if mcp else None
         if manager is not None:
             console.print(f"[dim]MCP: {len(agent.registry)} tools available[/]")
-        parts: list[str] = []
-        final = ""
         try:
-            async for event in agent.run_turn(session, prompt):
-                render_event(console, event)
-                if isinstance(event, TokenDelta):
-                    parts.append(event.text)
-                elif isinstance(event, TurnFinished):
-                    final = event.content or "".join(parts)
+            return await _stream_turn(agent, session, prompt)
         finally:
             if manager is not None:
                 await manager.aclose()
-        return final or "".join(parts)
 
     answer = asyncio.run(_run())
     if md and answer:
@@ -378,8 +402,7 @@ def chat(
     console.print("[dim]lca chat — type 'exit' or Ctrl-D to quit.[/]")
 
     async def _turn(text: str) -> None:
-        async for event in agent.run_turn(session, text):
-            render_event(console, event)
+        await _stream_turn(agent, session, text)
 
     while True:
         try:
