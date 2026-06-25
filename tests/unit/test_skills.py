@@ -54,7 +54,16 @@ def test_load_skills_and_index(tmp_path: Path):
 def test_bundled_skills_present():
     skills = load_skills(bundled_dir())
     names = {s.name for s in skills}
-    assert {"normalized-postgres-schema", "secure-fastapi-endpoint"} <= names
+    assert {
+        "normalized-postgres-schema",
+        "secure-fastapi-endpoint",
+        "accessible-react-component",
+        "summarize-logs",
+        "debug-from-traceback",
+        "deploy-web-app",
+    } <= names
+    # Every bundled skill must satisfy the spec (valid name + non-empty body).
+    assert all(s.body.strip() for s in skills)
 
 
 async def test_use_skill_tool(tmp_path: Path):

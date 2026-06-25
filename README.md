@@ -28,6 +28,23 @@ And it **improves over time**: every execution-verified result is remembered (a
 local ReasoningBank-style experience memory), and — optionally — used to fine-tune
 the 7B model.
 
+## What it can do
+
+- **Write / edit / run code** across a real repo (RAG-indexed, cited by `file:line`).
+- **Summarize logs** and **debug from a traceback**, grounded in the actual lines.
+- **Search the web** and answer with citations (or abstain).
+- **Open a real browser** (Playwright) to screenshot a page and run E2E smoke
+  checks — `browser_screenshot`, `browser_check`.
+- **Block secret leaks** — `secret_scan` flags hardcoded API keys/tokens/passwords
+  and audits `.gitignore` (secrets belong in env, not in code).
+- **Apply any tech** via a local, cited **reference knowledge base** (`reference_docs`):
+  ~150 cards spanning languages, frameworks, libraries, deployment, error→fix
+  recipes, OWASP security, and UI/UX design — backed by `docs/`.
+- **Agent Skills** — loads Claude-compatible `SKILL.md` files (progressive
+  disclosure + a `use_skill` tool); ships skills for normalized schemas, secure
+  endpoints, accessible components, log triage, debugging, and deployment.
+- **MCP** client (filesystem/git/fetch) — native + MCP tools in one registry.
+
 ## Hardware target
 
 NVIDIA RTX 5070 Laptop (Blackwell, 8 GB VRAM) · Ryzen 9 · 32 GB RAM · Windows 11.
@@ -38,15 +55,19 @@ the fast/fine-tunable model is **Qwen2.5-Coder-7B-Instruct**. Engine: **LM Studi
 ## Quickstart
 
 ```bash
-uv sync                     # install (Python 3.12+, uv); add --extra rag,search,mcp,web
+uv sync                     # install (Python 3.12+, uv); extras: rag,search,mcp,web,browser
 uv run lca doctor           # verify GPU + engine are healthy (run this FIRST)
 uv run lca index .          # build the code index (RAG)
 uv run lca ask "create hello.py and run it" --auto   # smart-by-default (auto-routes)
 uv run lca chat             # interactive multi-turn session
 uv run lca web              # browser UI at http://127.0.0.1:8765
+uv run lca skills           # list the Agent Skills (SKILL.md) available to the agent
 uv run lca mcp              # connect + list local MCP tools (filesystem/git/fetch)
 uv run lca learn            # RLVR self-improvement: rollout -> reward -> SFT dataset
 uv run lca stats            # how much it has learned/indexed
+
+# browser tools (optional): install Playwright + a browser once
+uv sync --extra browser && uv run playwright install chromium
 ```
 
 ## How it learns (RL / DL, on-device)
@@ -70,7 +91,8 @@ engine endpoint is reachable before anything is built on top. See
 ```
 cli / web            UI adapters (Typer+Rich, FastAPI+SSE)
   └─ core            UI-agnostic agent: ReAct loop, session, event stream
-       └─ providers, tools, rag, memory, verification, routing, mcp, permissions
+       └─ providers, tools, rag, memory, verification, routing, mcp,
+          permissions, skills, references
             └─ config, observability
 ```
 
