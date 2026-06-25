@@ -107,11 +107,15 @@ def version() -> None:
 @app.command()
 def config() -> None:
     """Show the effective configuration (engine, profile, models, autonomy)."""
+    from lca.providers.registry import detect_base_url
+
     s = get_settings()
+    engine_url = detect_base_url(s.llm.base_url, key=s.llm.api_key)
     table = Table(title="lca config", header_style="bold")
     table.add_column("Setting")
     table.add_column("Value")
-    table.add_row("engine base_url", s.llm.base_url)
+    detail = engine_url if engine_url == s.llm.base_url else f"{engine_url}  (auto-detected)"
+    table.add_row("engine base_url", detail)
     table.add_row("profile", s.profile)
     table.add_row("brain model", s.llm.brain_model)
     table.add_row("fast model", s.llm.fast_model)

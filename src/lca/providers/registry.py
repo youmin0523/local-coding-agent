@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import Literal
 
+import httpx
+
 from lca.config.settings import Settings, get_settings
 from lca.providers.base import LLMProvider
 from lca.providers.llamacpp import LlamaCppProvider
@@ -19,6 +21,40 @@ from lca.providers.retry import RetryingProvider
 EngineKind = Literal["llamacpp", "ollama", "openai-compat"]
 LogicalModel = Literal["brain", "fast"]
 
+# Common local engine endpoints, in preference order: LM Studio, llama-server, Ollama.
+_CANDIDATE_URLS = (
+    "http://127.0.0.1:1234/v1",
+    "http://127.0.0.1:8080/v1",
+    "http://127.0.0.1:11434/v1",
+)
+
+
+def detect_base_url(configured: str, *, key: str = "", timeout: float = 1.0) -> str:
+    """Return a reachable engine URL so users needn't set LCA_LLM__BASE_URL.
+
+    Tries the configured URL first (respecting an explicit setting), then the common
+    local ports. Falls back to ``configured`` if nothing answers. Best-effort, quick,
+    never raises.
+    """
+    seen: set[str] = set()
+    headers = {"Authorization": f"Bearer {key}"} if key else None
+    for url in (configured, *_CANDIDATE_URLS):
+        norm = url.rstrip("/")
+        if norm in seen:
+            continue
+        seen.add(norm)
+        try:
+            resp = httpx.get(f"{norm}/models", headers=headers, timeout=timeout)
+            if resp.status_code < 500:
+                return url
+        except Exception:
+            continue
+    return configured
+
+
+_DEFAULT_BASE_URL = "http://127.0.0.1:8080/v1"  # mirrors LLMSettings.base_url default
+_resolved_url: str | None = None
+
 
 def build_provider(
     settings: Settings | None = None, *, engine: EngineKind = "llamacpp", retries: int = 3
@@ -26,6 +62,13 @@ def build_provider(
     settings = settings or get_settings()
     url = settings.llm.base_url
     key = settings.llm.api_key
+    # If the user didn't override the endpoint, auto-detect a reachable local engine
+    # once per process (LM Studio :1234 / llama-server :8080 / Ollama :11434).
+    if url == _DEFAULT_BASE_URL:
+        global _resolved_url
+        if _resolved_url is None:
+            _resolved_url = detect_base_url(url, key=key)
+        url = _resolved_url
     timeout = settings.llm.request_timeout_s
     inner: LLMProvider = (
         LlamaCppProvider(url, key, timeout)
