@@ -34,6 +34,7 @@ from lca.core.events import (
 from lca.core.messages import Message, ToolCall
 from lca.core.session import Session
 from lca.observability.logging import get_logger
+from lca.observability.metrics import Metrics, MetricsSnapshot
 from lca.permissions.approver import Approver
 from lca.permissions.policy import Decision, PermissionPolicy
 from lca.permissions.sandbox import SandboxRunner
@@ -113,11 +114,16 @@ class Agent:
         self._sandbox_timeout = sandbox_timeout_s
         self._no_network = no_network
         self._builder = ContextBuilder()
+        self._metrics = Metrics()
 
     @property
     def registry(self) -> ToolRegistry:
         """The tool registry, so callers can register MCP tools before a turn."""
         return self._registry
+
+    def metrics_snapshot(self) -> MetricsSnapshot:
+        """Session-cumulative metrics (tool calls/failures, approvals, verdicts)."""
+        return self._metrics.snapshot()
 
     async def run_turn(self, session: Session, user_input: str) -> AsyncIterator[AgentEvent]:
         retrieved = await self._retrieve(user_input)
@@ -130,6 +136,7 @@ class Agent:
             no_network=self._no_network,
         )
         signals = _Signals()
+        self._metrics.incr("turns")
 
         for _ in range(self._max_iter):
             req = ChatRequest(
@@ -230,6 +237,7 @@ class Agent:
 
         passing = [s for s in scored if s[1] == "pass"]
         if passing:
+            self._metrics.incr("verified_pass")
             conf, _, chosen, _ = max(passing, key=lambda s: s[0])
             detail = f"best of {len(candidates)}" if len(candidates) > 1 else ""
             yield VerificationResult(verdict="pass", confidence=conf, detail=detail)
@@ -247,6 +255,7 @@ class Agent:
             if verdict_kind == "uncertain"
             else "Verification found problems with this answer."
         )
+        self._metrics.incr("abstained")
         if self._memory is not None:  # learn from the failure (ReasoningBank caution)
             try:
                 await self._memory.note_caution(task, "; ".join(sigs[:2]) or reason)
@@ -312,10 +321,12 @@ class Agent:
 
         decision = self._policy.evaluate(call, spec.risk, session.mode, session.allow_cache)
         if decision == Decision.ASK:
+            self._metrics.incr("approvals_requested")
             yield ApprovalRequired(request_id=call.id, call=call, risk=spec.risk)
             approved = await self._approver.request(call, spec.risk)
             yield ApprovalResolved(request_id=call.id, approved=approved)
             if not approved:
+                self._metrics.incr("denied")
                 decision = Decision.DENY
 
         if decision == Decision.DENY:
@@ -340,6 +351,9 @@ class Agent:
             log.exception("agent.tool_error", tool=call.name)
             result = ToolResult.error(f"tool raised {type(exc).__name__}: {exc}")
         yield ToolFinished(call_id=call.id, name=call.name, result=result)
+        self._metrics.incr("tool_calls")
+        if not result.ok:
+            self._metrics.incr("tool_failures")
         if result.is_truth and not result.ok:
             signals.checks_failed = True  # run_checks ran and failed: execution truth = fail
         if result.ok:

@@ -289,6 +289,15 @@ def chat(
         if user_input:
             asyncio.run(_turn(user_input))
 
+    snap = agent.metrics_snapshot()
+    c = snap.counters
+    if c.get("tool_calls"):
+        validity = 1 - c.get("tool_failures", 0) / c["tool_calls"]
+        console.print(
+            f"[dim]session: {c.get('turns', 0)} turns · {c['tool_calls']} tool calls "
+            f"({validity:.0%} ok) · {c.get('abstained', 0)} abstained[/]"
+        )
+
 
 @app.command()
 def web(
