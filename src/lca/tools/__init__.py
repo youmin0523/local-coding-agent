@@ -15,6 +15,7 @@ from lca.tools.base import (
 from lca.tools.code_exec import RunPythonTool
 from lca.tools.fs_read import read_tools
 from lca.tools.fs_write import write_tools
+from lca.tools.reference import ReferenceDocsTool
 from lca.tools.registry import ToolRegistry
 from lca.tools.run_checks import RunChecksTool
 from lca.tools.search_code import SearchCodeTool
@@ -30,6 +31,7 @@ __all__ = [
     "Artifact",
     "FetchUrlTool",
     "ListSymbolsTool",
+    "ReferenceDocsTool",
     "RiskLevel",
     "RunChecksTool",
     "RunPythonTool",
@@ -56,6 +58,7 @@ def build_default_registry(
         *read_tools(),
         *write_tools(),
         ListSymbolsTool(),
+        ReferenceDocsTool(),
         RunShellTool(),
         RunPythonTool(),
         RunChecksTool(),

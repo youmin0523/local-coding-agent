@@ -119,6 +119,7 @@ source_modules = [
     "lca.assembly",
     "lca.evaluation",
     "lca.learning",
+    "lca.references",
     "lca.providers",
     "lca.engine_mgmt",
     "lca.tools",
