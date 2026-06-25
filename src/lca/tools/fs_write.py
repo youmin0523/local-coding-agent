@@ -11,7 +11,20 @@ import difflib
 from typing import Any
 
 from lca.tools.base import Artifact, RiskLevel, ToolContext, ToolResult, ToolSpec
+from lca.tools.secret_scan import scan_text
 from lca.tools.util import safe_resolve, to_rel
+
+
+def _secret_warning(content: str) -> str:
+    """A loud, non-blocking note if the just-written content holds a hardcoded secret."""
+    hits = scan_text(content)
+    if not hits:
+        return ""
+    kinds = ", ".join(sorted({k for _, k in hits}))
+    return (
+        f"\n⚠ SECURITY: this content looks like it contains a hardcoded secret ({kinds}). "
+        "Move it to an environment variable / settings and keep it out of version control."
+    )
 
 
 def _unified_diff(old: str, new: str, path: str) -> str:
@@ -49,7 +62,7 @@ class WriteFileTool:
         diff = _unified_diff(old_content, new_content, rel) or "(new file)"
         action = "overwrote" if old_content else "created"
         return ToolResult.ok_text(
-            f"{action} {rel} ({len(new_content)} bytes)",
+            f"{action} {rel} ({len(new_content)} bytes){_secret_warning(new_content)}",
             artifacts=[Artifact(kind="diff", title=rel, body=diff, uri=rel)],
         )
 
@@ -92,7 +105,7 @@ class EditFileTool:
         path.write_text(updated, encoding="utf-8")
         diff = _unified_diff(content, updated, rel)
         return ToolResult.ok_text(
-            f"edited {rel}",
+            f"edited {rel}{_secret_warning(new_string)}",
             artifacts=[Artifact(kind="diff", title=rel, body=diff, uri=rel)],
         )
 

@@ -85,6 +85,29 @@ _RECOMMENDED_GITIGNORE = [".env", "*.pem", "*.key", "__pycache__/", ".venv/", "n
 _MAX_FINDINGS = 100
 
 
+def scan_text(text: str) -> list[tuple[int, str]]:
+    """Return ``(line_number, secret_type)`` for each likely hardcoded secret.
+
+    Conservative: lines that read from the environment/config and obvious
+    placeholders are skipped. Shared by the ``secret_scan`` tool and the write
+    tools (which warn the instant they persist a secret).
+    """
+    hits: list[tuple[int, str]] = []
+    for i, line in enumerate(text.splitlines(), 1):
+        if _ENV_USE.search(line):
+            continue
+        for name, pat in _PATTERNS:
+            m = pat.search(line)
+            if not m:
+                continue
+            value = m.group(m.lastindex or 0)
+            if _PLACEHOLDER.search(value):
+                continue
+            hits.append((i, name))
+            break
+    return hits
+
+
 class SecretScanTool:
     spec = ToolSpec(
         name="secret_scan",
@@ -133,18 +156,8 @@ class SecretScanTool:
                 text = path.read_text("utf-8", errors="replace")
             except OSError:
                 continue
-            for i, line in enumerate(text.splitlines(), 1):
-                if _ENV_USE.search(line):
-                    continue
-                for name, pat in _PATTERNS:
-                    m = pat.search(line)
-                    if not m:
-                        continue
-                    value = m.group(m.lastindex or 0)
-                    if _PLACEHOLDER.search(value):
-                        continue
-                    out.append(f"  {to_rel(root, path)}:{i}: {name}")
-                    break
+            for line_no, name in scan_text(text):
+                out.append(f"  {to_rel(root, path)}:{line_no}: {name}")
                 if len(out) >= _MAX_FINDINGS:
                     out.append("  …[truncated]")
                     return out

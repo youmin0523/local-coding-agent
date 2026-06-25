@@ -37,6 +37,20 @@ async def test_write_then_read_roundtrip(tmp_path: Path):
     assert "hello" in read.content
 
 
+async def test_write_warns_on_hardcoded_secret(tmp_path: Path):
+    ctx = _ctx(tmp_path)
+    leak = await WriteFileTool().run(
+        {"path": "c.py", "content": 'KEY = "sk-ant-aBcD1234EfGh5678IjKlMnOp"\n'}, ctx
+    )
+    assert leak.ok  # write still succeeds...
+    assert "SECURITY" in leak.content  # ...but loudly warns
+
+    clean = await WriteFileTool().run(
+        {"path": "d.py", "content": 'import os\nKEY = os.environ["KEY"]\n'}, ctx
+    )
+    assert clean.ok and "SECURITY" not in clean.content
+
+
 async def test_edit_requires_unique_match(tmp_path: Path):
     ctx = _ctx(tmp_path)
     (tmp_path / "f.py").write_text("x = 1\nx = 1\n")
