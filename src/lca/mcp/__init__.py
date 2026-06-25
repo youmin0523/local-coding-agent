@@ -1,2 +1,15 @@
-"""MCP client (M6): the agent acts as an MCP client over stdio and exposes MCP
-tools through the same `ToolRegistry` as native tools. Built out in milestone M6."""
+"""MCP client: the agent connects to stdio MCP servers and exposes their tools
+through the same `ToolRegistry` as native tools."""
+
+from lca.mcp.adapter import McpToolAdapter
+from lca.mcp.client import MCPClientManager, McpSession, McpToolInfo
+from lca.mcp.servers import ServerSpec, default_servers
+
+__all__ = [
+    "MCPClientManager",
+    "McpSession",
+    "McpToolAdapter",
+    "McpToolInfo",
+    "ServerSpec",
+    "default_servers",
+]
