@@ -25,7 +25,7 @@ from lca.cli.approval import CliApprover
 from lca.cli.clipboard import copy_to_clipboard
 from lca.cli.render import render_event
 from lca.config.paths import index_db_path, memory_db_path
-from lca.config.settings import get_settings
+from lca.config.settings import Settings, get_settings
 from lca.core.agent import Agent
 from lca.core.events import TokenDelta, TurnFinished
 from lca.core.session import Session
@@ -65,6 +65,29 @@ console = Console()
 
 # Domain task set distilled from the user's own projects (used by learn/eval if present).
 _DOMAIN_TASKS = Path("evals/user_domain_tasks.jsonl")
+
+
+async def _probe_disagreement(settings: Settings, prompt: str) -> float:
+    """Sample the fast model a couple of times and score how much the answers diverge."""
+    from lca.core.messages import Message
+    from lca.providers.base import ChatRequest
+    from lca.providers.registry import build_provider, resolve_model
+    from lca.routing.consistency import probe_disagreement
+
+    provider = build_provider(settings)
+    fast = resolve_model("fast", settings)
+
+    async def sample_once() -> str:
+        req = ChatRequest(
+            messages=[Message.user(prompt)], model=fast, temperature=0.8, max_tokens=160
+        )
+        parts = [c.delta_text async for c in provider.chat_stream(req) if c.delta_text]
+        return "".join(parts)
+
+    try:
+        return await probe_disagreement(sample_once, k=2)
+    except Exception:  # a probe failure must never block the turn
+        return 0.0
 
 
 def _resolve_tasks(tasks_file: str | None) -> list[EvalTask]:
@@ -219,13 +242,20 @@ def ask(
     do_verify = verify
     samples = 1
     if route:
-        # The 30B brain is only routed to when profile=quality (and thus loaded).
-        rp = Router(brain_available=settings.profile == "quality").plan(prompt)
+        brain = settings.profile == "quality"
+        # Self-consistency probe (quality only): a couple of quick fast-model samples;
+        # high divergence escalates difficulty so test-time compute lands where it matters.
+        disagreement: float | None = None
+        if brain and settings.route_consistency_probe:
+            disagreement = asyncio.run(_probe_disagreement(settings, prompt))
+        rp = Router(brain_available=brain).plan(prompt, disagreement=disagreement)
         model_logical = rp.model
         do_verify = do_verify or rp.verify
         samples = rp.samples
+        dis = f", disagree={disagreement}" if disagreement is not None else ""
         console.print(
-            f"[dim]route: {rp.difficulty} → {rp.model}, verify={do_verify}, samples={samples}[/]"
+            f"[dim]route: {rp.difficulty} → {rp.model}, verify={do_verify}, "
+            f"samples={samples}{dis}[/]"
         )
 
     agent = build_agent(

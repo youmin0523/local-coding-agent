@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     response_language: str = "Korean"
     # Judge-vote ratio required to deliver (else abstain). Calibrate on held-out tasks.
     verify_pass_threshold: float = 0.6
+    # Probe the fast model for answer divergence to escalate hard-but-innocuous-looking
+    # tasks (quality profile only). Costs a couple of fast-model samples per turn.
+    route_consistency_probe: bool = True
 
     llm: LLMSettings = Field(default_factory=LLMSettings)
     search: SearchSettings = Field(default_factory=SearchSettings)
