@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from lca.core.messages import Message
-from lca.core.prompts import SYSTEM_PROMPT, workspace_note
+from lca.core.prompts import SYSTEM_PROMPT, language_note, workspace_note
 from lca.core.session import Session
 
 # Rough chars-per-token for budgeting without a tokenizer dependency.
@@ -37,9 +37,11 @@ class RetrievedContext:
 
 
 class ContextBuilder:
-    def __init__(self, skills_note: str = "") -> None:
+    def __init__(self, skills_note: str = "", language: str = "") -> None:
         # Tier-1 skill metadata (name+description) always present in the system prompt.
         self._skills_note = skills_note
+        # Default reply language injected into the system prompt (empty = model default).
+        self._language = language
 
     def build(
         self,
@@ -48,6 +50,8 @@ class ContextBuilder:
         retrieved: RetrievedContext | None = None,
     ) -> list[Message]:
         system = SYSTEM_PROMPT + "\n\n" + workspace_note(str(session.workspace_root))
+        if self._language:
+            system += "\n\n" + language_note(self._language)
         if self._skills_note:
             system += "\n\n" + self._skills_note
         grounding = retrieved.render() if retrieved else ""

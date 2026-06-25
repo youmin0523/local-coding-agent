@@ -35,3 +35,14 @@ Keep tool arguments minimal and valid. End by explaining what you did and what y
 
 def workspace_note(root: str) -> str:
     return f"The current workspace is: {root}\nAll file paths are relative to it."
+
+
+def language_note(language: str) -> str:
+    """Tell the model which natural language to reply in (code is left untouched)."""
+    return (
+        f"LANGUAGE: Always respond in {language}. Write all prose, explanations, and "
+        f"summaries in {language} even when the user's message is in another language or "
+        f"mixes languages. Keep code, identifiers, file paths, commands, and log output "
+        f"verbatim — do not translate them. Switch only if the user explicitly asks you to "
+        f"reply in a specific other language."
+    )

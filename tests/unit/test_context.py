@@ -31,3 +31,12 @@ def test_no_summary_when_everything_fits(tmp_path: Path):
     session.add(Message.assistant("done"))
     system = ContextBuilder().build(session, "next")[0].content or ""
     assert "Earlier in this session" not in system
+
+
+def test_language_note_injected(tmp_path: Path):
+    session = Session(workspace_root=tmp_path, token_budget=16384)
+    system = ContextBuilder(language="Korean").build(session, "hi")[0].content or ""
+    assert "Always respond in Korean" in system
+    # default builder (no language) stays language-neutral
+    neutral = ContextBuilder().build(session, "hi")[0].content or ""
+    assert "LANGUAGE:" not in neutral

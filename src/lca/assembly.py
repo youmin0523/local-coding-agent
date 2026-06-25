@@ -89,4 +89,5 @@ def build_agent(
         samples=samples,
         max_tokens=settings.llm.max_context_tokens // 4,
         skills_note=skills_index(skills),
+        response_language=settings.response_language,
     )

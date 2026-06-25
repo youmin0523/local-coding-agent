@@ -94,6 +94,7 @@ def config() -> None:
     table.add_row("fast model", s.llm.fast_model)
     table.add_row("max context tokens", str(s.llm.max_context_tokens))
     table.add_row("autonomy default", s.autonomy)
+    table.add_row("response language", s.response_language)
     table.add_row("searxng url", s.search.searxng_url or "(none)")
     table.add_row("tavily key", "set" if s.search.tavily_api_key else "(none)")
     table.add_row("log", f"{s.log.format} / {s.log.level}")

@@ -55,6 +55,8 @@ class Settings(BaseSettings):
 
     profile: Literal["quality", "fast"] = "quality"
     autonomy: AutonomyLiteral = "gated"
+    # Default natural language for the agent's prose replies (code is left as-is).
+    response_language: str = "Korean"
 
     llm: LLMSettings = Field(default_factory=LLMSettings)
     search: SearchSettings = Field(default_factory=SearchSettings)

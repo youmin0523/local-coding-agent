@@ -99,6 +99,7 @@ class Agent:
         sandbox_timeout_s: float = 120.0,
         no_network: bool = False,
         skills_note: str = "",
+        response_language: str = "",
     ) -> None:
         self._provider = provider
         self._registry = registry
@@ -114,7 +115,7 @@ class Agent:
         self._max_tokens = max_tokens
         self._sandbox_timeout = sandbox_timeout_s
         self._no_network = no_network
-        self._builder = ContextBuilder(skills_note=skills_note)
+        self._builder = ContextBuilder(skills_note=skills_note, language=response_language)
         self._metrics = Metrics()
 
     @property
