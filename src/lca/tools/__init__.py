@@ -19,6 +19,7 @@ from lca.tools.registry import ToolRegistry
 from lca.tools.run_checks import RunChecksTool
 from lca.tools.search_code import SearchCodeTool
 from lca.tools.shell import RunShellTool
+from lca.tools.symbols import ListSymbolsTool
 from lca.tools.web.fetch import FetchUrlTool
 from lca.tools.web.search import WebSearchTool
 
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 __all__ = [
     "Artifact",
     "FetchUrlTool",
+    "ListSymbolsTool",
     "RiskLevel",
     "RunChecksTool",
     "RunPythonTool",
@@ -53,6 +55,7 @@ def build_default_registry(
     builtins: list[Tool] = [
         *read_tools(),
         *write_tools(),
+        ListSymbolsTool(),
         RunShellTool(),
         RunPythonTool(),
         RunChecksTool(),
