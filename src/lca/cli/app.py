@@ -21,7 +21,7 @@ from lca import __version__
 from lca.assembly import build_agent
 from lca.cli.approval import CliApprover
 from lca.cli.render import render_event
-from lca.config.paths import index_db_path
+from lca.config.paths import index_db_path, memory_db_path
 from lca.config.settings import get_settings
 from lca.core.agent import Agent
 from lca.core.session import Session
@@ -48,6 +48,27 @@ console = Console()
 def version() -> None:
     """Print the lca version."""
     console.print(f"lca {__version__}")
+
+
+@app.command()
+def stats() -> None:
+    """Show how much the agent has learned and indexed so far."""
+    from lca.memory.store import MemoryStore
+    from lca.rag.store import SqliteVectorStore
+
+    mem_db = memory_db_path()
+    idx_db = index_db_path()
+    learned = MemoryStore(mem_db).count() if mem_db.exists() else 0
+    indexed = SqliteVectorStore(idx_db).count() if idx_db.exists() else 0
+
+    table = Table(title="lca stats", header_style="bold")
+    table.add_column("Metric")
+    table.add_column("Value", justify="right")
+    table.add_row("Learned experiences (verified)", str(learned))
+    table.add_row("Indexed code chunks", str(indexed))
+    console.print(table)
+    if learned == 0:
+        console.print("[dim]Tip: run tasks with verification/execution so the agent learns.[/]")
 
 
 @app.command()
