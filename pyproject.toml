@@ -108,6 +108,7 @@ name = "core and domain layers must not import the UI layers"
 type = "forbidden"
 source_modules = [
     "lca.core",
+    "lca.assembly",
     "lca.providers",
     "lca.engine_mgmt",
     "lca.tools",

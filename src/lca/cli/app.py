@@ -18,23 +18,19 @@ from rich.panel import Panel
 from rich.table import Table
 
 from lca import __version__
+from lca.assembly import build_agent
 from lca.cli.approval import CliApprover
 from lca.cli.render import render_event
 from lca.config.paths import index_db_path
 from lca.config.settings import get_settings
-from lca.core.agent import Agent
 from lca.core.session import Session
 from lca.engine_mgmt.doctor import DoctorReport, run_doctor
 from lca.observability.logging import configure_logging
 from lca.permissions.modes import AutonomyMode
-from lca.permissions.policy import DefaultPolicy
-from lca.providers.registry import build_provider, resolve_model
 from lca.rag.embedder import default_embedder
-from lca.rag.hybrid import HybridRetriever
 from lca.rag.indexer import Indexer
-from lca.rag.retriever import Retriever
 from lca.rag.store import SqliteVectorStore
-from lca.tools import build_default_registry
+from lca.routing.router import Router
 
 app = typer.Typer(
     name="lca",
@@ -124,6 +120,13 @@ def ask(
     path: str = typer.Option(".", "--path", "-C", help="Workspace directory."),
     auto: bool = typer.Option(False, "--auto", help="Autonomous mode (auto-approve ≤ ceiling)."),
     plan: bool = typer.Option(False, "--plan", help="Plan mode (propose actions, never execute)."),
+    verify: bool = typer.Option(
+        False, "--verify", help="Verify the final answer (deliver-or-abstain)."
+    ),
+    route: bool = typer.Option(
+        False, "--route", help="Auto-pick model + verification by difficulty."
+    ),
+    no_memory: bool = typer.Option(False, "--no-memory", help="Disable experience memory."),
 ) -> None:
     """Run a single agent turn against the local engine."""
     settings = get_settings()
@@ -131,16 +134,20 @@ def ask(
     workspace = Path(path).resolve()
     mode = AutonomyMode.AUTONOMOUS if auto else (AutonomyMode.PLAN if plan else AutonomyMode.GATED)
 
-    retriever = _open_retriever()
-    provider = build_provider(settings)
-    logical: Literal["brain", "fast"] = "brain" if settings.profile == "quality" else "fast"
-    agent = Agent(
-        provider,
-        build_default_registry(retriever),
-        DefaultPolicy(),
+    model_logical: Literal["brain", "fast"] = "brain" if settings.profile == "quality" else "fast"
+    do_verify = verify
+    if route:
+        rp = Router().plan(prompt)
+        model_logical = rp.model
+        do_verify = do_verify or rp.verify
+        console.print(f"[dim]route: {rp.difficulty} → {rp.model}, verify={do_verify}[/]")
+
+    agent = build_agent(
         CliApprover(console),
-        model=resolve_model(logical, settings),
-        retriever=retriever,
+        settings=settings,
+        model_logical=model_logical,
+        verify=do_verify,
+        use_memory=not no_memory,
     )
     session = Session(
         workspace_root=workspace, mode=mode, token_budget=settings.llm.max_context_tokens
@@ -153,13 +160,25 @@ def ask(
     asyncio.run(_run())
 
 
-def _open_retriever() -> Retriever | None:
-    """Open the on-disk index as a retriever, if one has been built."""
-    db = index_db_path()
-    if not db.exists():
-        return None
-    store = SqliteVectorStore(db)
-    return HybridRetriever(store, default_embedder())
+@app.command()
+def web(
+    path: str = typer.Option(".", "--path", "-C", help="Workspace directory."),
+    host: str = typer.Option("127.0.0.1", help="Bind host."),
+    port: int = typer.Option(8765, help="Bind port."),
+) -> None:
+    """Serve the browser chat UI (requires the `web` extra)."""
+    settings = get_settings()
+    configure_logging(settings.log.format, settings.log.level)
+    try:
+        import uvicorn
+
+        from lca.web.server import create_app
+    except ImportError:
+        console.print("[red]Web UI requires:[/] uv sync --extra web")
+        raise typer.Exit(code=1) from None
+    application = create_app(workspace=Path(path).resolve())
+    console.print(f"[green]lca web[/] → http://{host}:{port}")
+    uvicorn.run(application, host=host, port=port, log_level="warning")
 
 
 def main() -> None:
