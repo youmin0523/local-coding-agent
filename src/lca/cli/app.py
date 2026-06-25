@@ -27,6 +27,8 @@ from lca.core.agent import Agent
 from lca.core.session import Session
 from lca.engine_mgmt.doctor import DoctorReport, run_doctor
 from lca.evaluation import default_tasks, load_tasks, run_eval
+from lca.learning import LearnReport, export_sft, run_rollouts
+from lca.memory.store import MemoryStore
 from lca.observability.logging import configure_logging
 from lca.permissions.approver import AutoApprover
 from lca.permissions.modes import AutonomyMode
@@ -288,6 +290,63 @@ def web(
     application = create_app(workspace=Path(path).resolve())
     console.print(f"[green]lca web[/] → http://{host}:{port}")
     uvicorn.run(application, host=host, port=port, log_level="warning")
+
+
+@app.command(name="learn")
+def learn(
+    path: str = typer.Option(".", "--path", "-C", help="Workspace directory."),
+    tasks_file: str | None = typer.Option(None, "--tasks", help="JSONL task file (optional)."),
+    samples: int = typer.Option(3, "--samples", help="Best-of-N candidates per rollout."),
+) -> None:
+    """Self-improve (RLVR): run tasks, keep verified trajectories, build the SFT corpus.
+
+    Rollout → execution/verification reward → keep passes (memory) → export dataset.
+    The gradient step (QLoRA) is the optional WSL2 stage; see docs/runbook-training-wsl2.md.
+    """
+    settings = get_settings()
+    configure_logging(settings.log.format, settings.log.level)
+    workspace = Path(path).resolve()
+    tasks = load_tasks(Path(tasks_file)) if tasks_file else default_tasks()
+    model_logical: Literal["brain", "fast"] = "brain" if settings.profile == "quality" else "fast"
+
+    def factory() -> Agent:
+        return build_agent(
+            AutoApprover(),
+            settings=settings,
+            model_logical=model_logical,
+            verify=True,
+            samples=samples,
+            use_memory=True,
+        )
+
+    async def _run() -> LearnReport:
+        with console.status(f"Rolling out {len(tasks)} task(s) with best-of-{samples} + verify…"):
+            rewarded = await run_rollouts(factory, tasks, workspace)
+        store = MemoryStore(memory_db_path())
+        out = Path("training") / "data" / "sft.jsonl"
+        examples = export_sft(store, out)
+        return LearnReport(
+            rollouts=len(tasks),
+            rewarded=rewarded,
+            learned_total=store.count(),
+            dataset_path=str(out),
+            dataset_examples=examples,
+        )
+
+    report = asyncio.run(_run())
+    table = Table(title="lca learn (RLVR rollout)", header_style="bold")
+    table.add_column("Metric")
+    table.add_column("Value", justify="right")
+    table.add_row("Rollouts", str(report.rollouts))
+    table.add_row("Rewarded (verified pass)", f"{report.rewarded}  ({report.reward_rate:.0%})")
+    table.add_row("Learned experiences (total)", str(report.learned_total))
+    table.add_row("SFT examples written", str(report.dataset_examples))
+    console.print(table)
+    console.print(f"[dim]dataset: {report.dataset_path}[/]")
+    console.print(
+        "[dim]next (optional, WSL2): python training/train_qlora.py "
+        "--data training/data/sft.jsonl  — see docs/runbook-training-wsl2.md[/]"
+    )
 
 
 @app.command(name="eval")

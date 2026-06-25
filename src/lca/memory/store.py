@@ -85,5 +85,19 @@ class MemoryStore:
     def count(self) -> int:
         return int(self._con.execute("SELECT COUNT(*) FROM memories").fetchone()[0])
 
+    def dump(self, kind: str | None = None) -> list[MemoryItem]:
+        """All stored items (optionally of one kind) — used to build training data."""
+        query = "SELECT kind, title, content, source FROM memories"
+        params: tuple[object, ...] = ()
+        if kind:
+            query += " WHERE kind = ?"
+            params = (kind,)
+        return [
+            MemoryItem(
+                kind=row["kind"], title=row["title"], content=row["content"], source=row["source"]
+            )
+            for row in self._con.execute(query, params)
+        ]
+
     def close(self) -> None:
         self._con.close()
