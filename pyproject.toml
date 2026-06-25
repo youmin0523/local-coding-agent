@@ -56,6 +56,8 @@ packages = ["src/lca"]
 target-version = "py312"
 line-length = 100
 src = ["src", "tests"]
+# WSL2-only optional training scripts (heavy deps not installed in the base env).
+extend-exclude = ["training"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "C4", "PTH", "RUF", "ASYNC"]
