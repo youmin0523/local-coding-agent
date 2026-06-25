@@ -23,8 +23,8 @@ class LLMSettings(BaseModel):
 
     base_url: str = "http://127.0.0.1:8080/v1"
     api_key: str = "not-needed-for-local"
-    # Logical model names; the engine resolves these to concrete loaded models.
-    brain_model: str = "qwen3-coder-30b-a3b"
+    # Logical model names; must match the ids the engine serves (see `lca doctor`).
+    brain_model: str = "qwen3-coder-30b-a3b-instruct"
     fast_model: str = "qwen2.5-coder-7b-instruct"
     # Hard cap, deliberately far below the model's nominal max (8GB VRAM tier).
     max_context_tokens: int = 16_384
