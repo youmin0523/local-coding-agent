@@ -37,6 +37,10 @@ class RetrievedContext:
 
 
 class ContextBuilder:
+    def __init__(self, skills_note: str = "") -> None:
+        # Tier-1 skill metadata (name+description) always present in the system prompt.
+        self._skills_note = skills_note
+
     def build(
         self,
         session: Session,
@@ -44,6 +48,8 @@ class ContextBuilder:
         retrieved: RetrievedContext | None = None,
     ) -> list[Message]:
         system = SYSTEM_PROMPT + "\n\n" + workspace_note(str(session.workspace_root))
+        if self._skills_note:
+            system += "\n\n" + self._skills_note
         grounding = retrieved.render() if retrieved else ""
         if grounding:
             system += "\n\n" + grounding

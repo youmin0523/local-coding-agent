@@ -265,6 +265,25 @@ def mcp_cmd(path: str = typer.Option(".", "--path", "-C", help="Workspace direct
     asyncio.run(_run())
 
 
+@app.command(name="skills")
+def skills_cmd(path: str = typer.Option(".", "--path", "-C", help="Workspace directory.")) -> None:
+    """List the Agent Skills (SKILL.md) available to the agent."""
+    from lca.skills.loader import bundled_dir, load_skills
+
+    workspace = Path(path).resolve()
+    skills = load_skills(bundled_dir(), workspace / "skills")
+    if not skills:
+        console.print("[yellow]No skills found.[/] Add <workspace>/skills/<name>/SKILL.md")
+        return
+    table = Table(title=f"Agent skills ({len(skills)})", header_style="bold")
+    table.add_column("name", style="cyan")
+    table.add_column("description")
+    for s in skills:
+        desc = s.description if len(s.description) <= 100 else s.description[:97] + "..."
+        table.add_row(s.name, desc)
+    console.print(table)
+
+
 @app.command()
 def chat(
     path: str = typer.Option(".", "--path", "-C", help="Workspace directory."),

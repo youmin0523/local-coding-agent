@@ -24,7 +24,9 @@ from lca.rag.embedder import default_embedder
 from lca.rag.hybrid import HybridRetriever
 from lca.rag.retriever import Retriever
 from lca.rag.store import SqliteVectorStore
+from lca.skills.loader import default_skill_roots, load_skills, skills_index
 from lca.tools import build_default_registry
+from lca.tools.skill import UseSkillTool
 from lca.verification.gate import build_llm_gate
 
 LogicalModel = Literal["brain", "fast"]
@@ -71,9 +73,13 @@ def build_agent(
     retriever = open_retriever()
     memory = open_memory() if use_memory else None
     verifier = build_llm_gate(provider, model) if verify else None
+    registry = build_default_registry(retriever, enable_web=enable_web)
+    skills = load_skills(*default_skill_roots())
+    if skills:
+        registry.register(UseSkillTool(skills))
     return Agent(
         provider,
-        build_default_registry(retriever, enable_web=enable_web),
+        registry,
         DefaultPolicy(),
         approver,
         model=model,
@@ -82,4 +88,5 @@ def build_agent(
         memory=memory,
         samples=samples,
         max_tokens=settings.llm.max_context_tokens // 4,
+        skills_note=skills_index(skills),
     )

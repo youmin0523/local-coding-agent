@@ -1,6 +1,6 @@
 # Reference catalog index
 
-127 cards across 13 categories — surfaced by the reference_docs tool (with fetch_url for live detail).
+148 cards across 14 categories — surfaced by the reference_docs tool (with fetch_url for live detail).
 
 ## db
 - [PostgreSQL](https://www.postgresql.org/docs/current/) — Use PostgreSQL as a general-purpose, ACID-compliant relational database when you need stro
@@ -141,6 +141,29 @@
 - [OWASP A09:2025 — Security Logging & Alerting Failures](https://owasp.org/Top10/2025/A09_2025-Security_Logging_and_Alerting_Failures/) — Setting up logging/observability, incident-response readiness, or reviewing what gets reco
 - [OWASP API4:2023 — Unrestricted Resource Consumption / Rate Limiting (slowapi)](https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/) — Public/auth endpoints exposed to abuse, brute-force, or scraping; any endpoint returning l
 - [OWASP API7:2023 — Server-Side Request Forgery (SSRF)](https://owasp.org/API-Security/editions/2023/en/0xa7-server-side-request-forgery/) — Any feature where the server makes outbound requests to a URL influenced by the client (we
+
+## skill
+- [algorithmic-art](https://github.com/anthropics/skills/blob/main/skills/algorithmic-art/SKILL.md) — When users request creating art with code: generative/algorithmic art, flow fields, or par
+- [brand-guidelines](https://github.com/anthropics/skills/blob/main/skills/brand-guidelines/SKILL.md) — When Anthropic brand colors, style guidelines, visual formatting, or company design standa
+- [canvas-design](https://github.com/anthropics/skills/blob/main/skills/canvas-design/SKILL.md) — When the user asks to create a poster, art, design, or other static visual piece (output a
+- [Claude Agent SDK: Skills](https://code.claude.com/docs/en/agent-sdk/skills) — When a custom agent should discover and auto-invoke filesystem Skills programmatically; th
+- [Claude API: Agent Skills (Skills API + container)](https://platform.claude.com/docs/en/build-with-claude/skills-guide) — When integrating Skills into your own application/agent through the Claude Messages API on
+- [Claude Code: Skills (custom commands merged)](https://code.claude.com/docs/en/skills) — When creating, scoping, or governing Skills/slash-commands in the Claude Code CLI, includi
+- [claude-api](https://github.com/anthropics/skills/blob/main/skills/claude-api/SKILL.md) — Building or debugging LLM-powered apps with Claude; any question about Claude model ids, p
+- [doc-coauthoring](https://github.com/anthropics/skills/blob/main/skills/doc-coauthoring/SKILL.md) — When the user wants to co-author documentation, proposals, technical specs, decision docs,
+- [docx](https://github.com/anthropics/skills/blob/main/skills/docx/SKILL.md) — Any task creating, reading, editing, or manipulating Word (.docx) documents, or producing 
+- [frontend-design](https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md) — When building new UI or reshaping existing UI and you want distinctive, intentional visual
+- [internal-comms](https://github.com/anthropics/skills/blob/main/skills/internal-comms/SKILL.md) — Whenever asked to write internal communications (status reports, leadership/3P/project upd
+- [mcp-builder](https://github.com/anthropics/skills/blob/main/skills/mcp-builder/SKILL.md) — When building an MCP server to integrate an external API or service (Python or Node/TS).
+- [pdf](https://github.com/anthropics/skills/blob/main/skills/pdf/SKILL.md) — Any task involving PDF files: read/extract, merge/split, rotate, watermark, create, fill f
+- [pptx](https://github.com/anthropics/skills/blob/main/skills/pptx/SKILL.md) — Any time a .pptx is involved as input or output: create/edit decks, extract slide text, wo
+- [skill-creator](https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md) — When creating a new skill from scratch, editing/optimizing an existing one, running evals,
+- [SKILL.md format](https://github.com/anthropics/skills ; https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview ; https://agentskills.io/specification) — Whenever authoring, editing, or auditing a SKILL.md on any surface (Claude Code, API, clau
+- [slack-gif-creator](https://github.com/anthropics/skills/blob/main/skills/slack-gif-creator/SKILL.md) — When users request animated GIFs optimized for Slack (e.g. 'make me a GIF of X doing Y for
+- [theme-factory](https://github.com/anthropics/skills/blob/main/skills/theme-factory/SKILL.md) — When styling an existing artifact (slides, docs, reports, HTML pages) with a consistent pr
+- [web-artifacts-builder](https://github.com/anthropics/skills/blob/main/skills/web-artifacts-builder/SKILL.md) — Creating elaborate, multi-component claude.ai HTML artifacts requiring state management, r
+- [webapp-testing](https://github.com/anthropics/skills/blob/main/skills/webapp-testing/SKILL.md) — Testing/interacting with local web apps: verify frontend behavior, debug UI, capture brows
+- [xlsx](https://github.com/anthropics/skills/blob/main/skills/xlsx/SKILL.md) — Any task where a spreadsheet file is the primary input or output, including cleaning/restr
 
 ## testing
 - [pytest](https://docs.pytest.org/en/stable/) — Use pytest as the de-facto framework for writing and running automated tests in Python - f

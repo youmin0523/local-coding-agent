@@ -122,6 +122,7 @@ source_modules = [
     "lca.evaluation",
     "lca.learning",
     "lca.references",
+    "lca.skills",
     "lca.providers",
     "lca.engine_mgmt",
     "lca.tools",
