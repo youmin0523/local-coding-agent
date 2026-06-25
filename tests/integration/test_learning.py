@@ -22,7 +22,9 @@ class _Verifier:
     def __init__(self, verdict: str) -> None:
         self._verdict = verdict
 
-    async def verify_answer(self, task: str, answer: str) -> Verdict:
+    async def verify_answer(
+        self, task: str, answer: str, *, execution_passed: bool | None = None
+    ) -> Verdict:
         return Verdict(verdict=self._verdict, confidence=0.9)
 
 

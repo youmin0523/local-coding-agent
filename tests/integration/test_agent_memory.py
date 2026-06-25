@@ -18,12 +18,16 @@ from lca.verification.models import Verdict
 
 
 class _PassVerifier:
-    async def verify_answer(self, task: str, answer: str) -> Verdict:
+    async def verify_answer(
+        self, task: str, answer: str, *, execution_passed: bool | None = None
+    ) -> Verdict:
         return Verdict(verdict="pass", confidence=0.9)
 
 
 class _UncertainVerifier:
-    async def verify_answer(self, task: str, answer: str) -> Verdict:
+    async def verify_answer(
+        self, task: str, answer: str, *, execution_passed: bool | None = None
+    ) -> Verdict:
         return Verdict(verdict="uncertain", confidence=0.2, signals=["correctness: concern"])
 
 

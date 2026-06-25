@@ -34,7 +34,9 @@ class _KeywordVerifier:
     def __init__(self, magic: str) -> None:
         self._magic = magic
 
-    async def verify_answer(self, task: str, answer: str) -> Verdict:
+    async def verify_answer(
+        self, task: str, answer: str, *, execution_passed: bool | None = None
+    ) -> Verdict:
         if self._magic in answer:
             return Verdict(verdict="pass", confidence=0.5 + 0.01 * len(answer))
         return Verdict(verdict="uncertain", confidence=0.2, signals=["missing magic word"])

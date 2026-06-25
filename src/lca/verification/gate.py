@@ -20,7 +20,9 @@ from lca.verification.models import JudgeVote, Verdict, VerdictKind
 
 @runtime_checkable
 class Verifier(Protocol):
-    async def verify_answer(self, task: str, answer: str) -> Verdict | None: ...
+    async def verify_answer(
+        self, task: str, answer: str, *, execution_passed: bool | None = None
+    ) -> Verdict | None: ...
 
 
 class VerificationGate:

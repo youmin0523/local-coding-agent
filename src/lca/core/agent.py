@@ -57,16 +57,26 @@ class _Signals:
     means the answer is grounded enough to learn from without an LLM judge.
     """
 
-    __slots__ = ("cited", "executed_ok", "truth_ok")
+    __slots__ = ("checks_failed", "cited", "executed_ok", "truth_ok")
 
     def __init__(self) -> None:
         self.truth_ok = False  # run_checks (tests/types/lint) passed
+        self.checks_failed = False  # run_checks ran and FAILED
         self.executed_ok = False  # code/command ran successfully (run_python/run_shell)
         self.cited = False  # a web citation was produced
 
     @property
     def grounded(self) -> bool:
         return self.truth_ok or self.executed_ok or self.cited
+
+    @property
+    def execution_passed(self) -> bool | None:
+        """Tri-state execution signal for verification: failure dominates."""
+        if self.checks_failed:
+            return False
+        if self.truth_ok:
+            return True
+        return None
 
 
 class Agent:
@@ -176,7 +186,7 @@ class Agent:
             candidates = [answer]
             if self._samples > 1:
                 candidates += await self._sample_candidates(base_messages, self._samples - 1)
-            async for ev in self._select_verified(task, candidates):
+            async for ev in self._select_verified(task, candidates, signals.execution_passed):
                 yield ev
             return
 
@@ -194,13 +204,21 @@ class Agent:
             await self._remember(task, answer)
         yield TurnFinished(stop_reason="complete", content=answer)
 
-    async def _select_verified(self, task: str, candidates: list[str]) -> AsyncIterator[AgentEvent]:
-        """Verify each candidate; deliver the best `pass`, else abstain (best-of-N)."""
+    async def _select_verified(
+        self, task: str, candidates: list[str], execution_passed: bool | None = None
+    ) -> AsyncIterator[AgentEvent]:
+        """Verify each candidate; deliver the best `pass`, else abstain (best-of-N).
+
+        ``execution_passed`` carries the turn's run_checks result into the verdict so
+        execution dominates the judges (a failing check can't be argued into a pass).
+        """
         assert self._verifier is not None
         scored: list[tuple[float, str, str, list[str]]] = []  # (conf, verdict, answer, signals)
         for cand in candidates:
             try:
-                verdict = await self._verifier.verify_answer(task, cand)
+                verdict = await self._verifier.verify_answer(
+                    task, cand, execution_passed=execution_passed
+                )
             except Exception as exc:  # verification must never crash a turn
                 log.warning("agent.verify_failed", error=str(exc))
                 yield TurnFinished(stop_reason="complete", content=candidates[0])
@@ -322,6 +340,8 @@ class Agent:
             log.exception("agent.tool_error", tool=call.name)
             result = ToolResult.error(f"tool raised {type(exc).__name__}: {exc}")
         yield ToolFinished(call_id=call.id, name=call.name, result=result)
+        if result.is_truth and not result.ok:
+            signals.checks_failed = True  # run_checks ran and failed: execution truth = fail
         if result.ok:
             if result.is_truth:
                 signals.truth_ok = True  # run_checks passed: strongest signal

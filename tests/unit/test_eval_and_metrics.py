@@ -27,7 +27,9 @@ def _answer_agent(text: str, verifier=None) -> Agent:
 
 
 class _UncertainVerifier:
-    async def verify_answer(self, task: str, answer: str) -> Verdict:
+    async def verify_answer(
+        self, task: str, answer: str, *, execution_passed: bool | None = None
+    ) -> Verdict:
         return Verdict(verdict="uncertain", confidence=0.2)
 
 
