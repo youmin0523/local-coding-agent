@@ -8,7 +8,6 @@ it falls back to the live search → fetch → cite chain. The catalog lives in
 
 from __future__ import annotations
 
-import json
 from functools import lru_cache
 from pathlib import Path
 
