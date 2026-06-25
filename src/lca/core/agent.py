@@ -81,6 +81,7 @@ class Agent:
         retriever: Retriever | None = None,
         verifier: Verifier | None = None,
         memory: Memory | None = None,
+        samples: int = 1,
         max_tool_iterations: int = 8,
         temperature: float = 0.2,
         max_tokens: int = 2048,
@@ -95,6 +96,7 @@ class Agent:
         self._retriever = retriever
         self._verifier = verifier
         self._memory = memory
+        self._samples = max(1, samples)
         self._max_iter = max_tool_iterations
         self._temperature = temperature
         self._max_tokens = max_tokens
@@ -143,7 +145,9 @@ class Agent:
             messages.append(assistant)
 
             if not calls:
-                async for ev in self._finalize(user_input, text, signals):
+                # base_messages = everything except the just-appended final answer,
+                # so best-of-N can resample alternative answers from the same context.
+                async for ev in self._finalize(user_input, text, signals, messages[:-1]):
                     yield ev
                 return
 
@@ -154,16 +158,20 @@ class Agent:
         yield TurnFinished(stop_reason="budget", content="Stopped: tool-iteration limit reached.")
 
     async def _finalize(
-        self, task: str, answer: str, signals: _Signals
+        self, task: str, answer: str, signals: _Signals, base_messages: list[Message]
     ) -> AsyncIterator[AgentEvent]:
-        """Verify the final answer, deliver-or-abstain, and learn from grounded results."""
+        """Verify the final answer (best-of-N), deliver-or-abstain, and learn."""
         if not answer.strip():
             yield TurnFinished(stop_reason="complete", content=answer)
             return
 
-        # Strong path: an explicit verifier (LLM judges + optional execution signal).
+        # Strong path: a verifier is attached. With samples>1 this becomes best-of-N —
+        # sample several candidate answers and deliver the best-verified one.
         if self._verifier is not None:
-            async for ev in self._finalize_with_verifier(task, answer):
+            candidates = [answer]
+            if self._samples > 1:
+                candidates += await self._sample_candidates(base_messages, self._samples - 1)
+            async for ev in self._select_verified(task, candidates):
                 yield ev
             return
 
@@ -181,32 +189,70 @@ class Agent:
             await self._remember(task, answer)
         yield TurnFinished(stop_reason="complete", content=answer)
 
-    async def _finalize_with_verifier(self, task: str, answer: str) -> AsyncIterator[AgentEvent]:
+    async def _select_verified(self, task: str, candidates: list[str]) -> AsyncIterator[AgentEvent]:
+        """Verify each candidate; deliver the best `pass`, else abstain (best-of-N)."""
         assert self._verifier is not None
-        try:
-            verdict = await self._verifier.verify_answer(task, answer)
-        except Exception as exc:  # verification must never crash a turn
-            log.warning("agent.verify_failed", error=str(exc))
-            yield TurnFinished(stop_reason="complete", content=answer)
-            return
-        if verdict is None:
-            yield TurnFinished(stop_reason="complete", content=answer)
+        scored: list[tuple[float, str, str, list[str]]] = []  # (conf, verdict, answer, signals)
+        for cand in candidates:
+            try:
+                verdict = await self._verifier.verify_answer(task, cand)
+            except Exception as exc:  # verification must never crash a turn
+                log.warning("agent.verify_failed", error=str(exc))
+                yield TurnFinished(stop_reason="complete", content=candidates[0])
+                return
+            if verdict is None:
+                yield TurnFinished(stop_reason="complete", content=cand)
+                return
+            scored.append((verdict.confidence, verdict.verdict, cand, verdict.signals))
+
+        passing = [s for s in scored if s[1] == "pass"]
+        if passing:
+            conf, _, chosen, _ = max(passing, key=lambda s: s[0])
+            detail = f"best of {len(candidates)}" if len(candidates) > 1 else ""
+            yield VerificationResult(verdict="pass", confidence=conf, detail=detail)
+            await self._remember(task, chosen)
+            yield TurnFinished(stop_reason="complete", content=chosen)
             return
 
+        best = max(scored, key=lambda s: s[0])
+        conf, verdict_kind, answer, sigs = best
         yield VerificationResult(
-            verdict=verdict.verdict, confidence=verdict.confidence, detail=verdict.rationale
+            verdict=verdict_kind, confidence=conf, detail=f"of {len(candidates)}"
         )
-        if verdict.verdict == "pass":
-            await self._remember(task, answer)
-            yield TurnFinished(stop_reason="complete", content=answer)
-            return
         reason = (
             "Verification was not confident enough to assert this answer."
-            if verdict.verdict == "uncertain"
+            if verdict_kind == "uncertain"
             else "Verification found problems with this answer."
         )
-        yield Abstained(reason=reason, options=verdict.signals)
+        yield Abstained(reason=reason, options=sigs)
         yield TurnFinished(stop_reason="abstained", content=answer)
+
+    async def _sample_candidates(self, base_messages: list[Message], n: int) -> list[str]:
+        """Sample N alternative final answers (no tools, higher temperature)."""
+        out: list[str] = []
+        for _ in range(n):
+            try:
+                text = await self._complete(base_messages, temperature=0.7)
+            except ProviderError as exc:
+                log.warning("agent.sample_failed", error=str(exc))
+                break
+            if text.strip():
+                out.append(text)
+        return out
+
+    async def _complete(self, messages: list[Message], *, temperature: float) -> str:
+        req = ChatRequest(
+            messages=messages,
+            model=self._model,
+            tools=[],
+            temperature=temperature,
+            max_tokens=self._max_tokens,
+        )
+        parts: list[str] = []
+        async for chunk in self._provider.chat_stream(req):
+            if chunk.delta_text:
+                parts.append(chunk.delta_text)
+        return "".join(parts)
 
     async def _remember(self, task: str, answer: str) -> None:
         if self._memory is None:

@@ -139,17 +139,22 @@ def ask(
 
     model_logical: Literal["brain", "fast"] = "brain" if settings.profile == "quality" else "fast"
     do_verify = verify
+    samples = 1
     if route:
         rp = Router().plan(prompt)
         model_logical = rp.model
         do_verify = do_verify or rp.verify
-        console.print(f"[dim]route: {rp.difficulty} → {rp.model}, verify={do_verify}[/]")
+        samples = rp.samples
+        console.print(
+            f"[dim]route: {rp.difficulty} → {rp.model}, verify={do_verify}, samples={samples}[/]"
+        )
 
     agent = build_agent(
         CliApprover(console),
         settings=settings,
         model_logical=model_logical,
         verify=do_verify,
+        samples=samples,
         use_memory=not no_memory,
     )
     session = Session(

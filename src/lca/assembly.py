@@ -48,6 +48,7 @@ def build_agent(
     provider: LLMProvider | None = None,
     model_logical: LogicalModel = "brain",
     verify: bool = False,
+    samples: int = 1,
     use_memory: bool = True,
     enable_web: bool = True,
 ) -> Agent:
@@ -66,5 +67,6 @@ def build_agent(
         retriever=retriever,
         verifier=verifier,
         memory=memory,
+        samples=samples,
         max_tokens=settings.llm.max_context_tokens // 4,
     )
