@@ -75,11 +75,11 @@ async def test_edit_missing_string_errors(tmp_path: Path):
 
 async def test_edit_whitespace_flexible_match(tmp_path: Path):
     ctx = _ctx(tmp_path)
-    (tmp_path / "h.py").write_text("def f():\n    return 1\n")  # 4-space indent
-    # agent supplies the line with different (2-space) indentation — exact match fails,
-    # whitespace-flexible match should still apply it
+    (tmp_path / "h.py").write_text("def f():\n\treturn 1\n")  # tab-indented
+    # agent supplies the line space-indented — no exact substring match, but the
+    # whitespace-flexible (stripped-line) match should still apply it cleanly
     res = await EditFileTool().run(
-        {"path": "h.py", "old_string": "  return 1", "new_string": "    return 42"}, ctx
+        {"path": "h.py", "old_string": "    return 1", "new_string": "    return 42"}, ctx
     )
     assert res.ok
     assert (tmp_path / "h.py").read_text() == "def f():\n    return 42\n"
