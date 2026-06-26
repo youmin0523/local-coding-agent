@@ -13,7 +13,9 @@ milestones; this milestone is the clean, well-guarded core loop.
 
 from __future__ import annotations
 
+import re
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from lca.core.context import ContextBuilder, RetrievedContext
@@ -51,6 +53,9 @@ log = get_logger("core.agent")
 
 # How many times to nudge-and-retry when the model returns an empty completion.
 _MAX_EMPTY_RETRIES = 2
+# `@path/to/file` mentions in the user's message → inject that file as explicit context.
+_MENTION_RE = re.compile(r"@([\w./\\-]+)")
+_MENTION_MAX_CHARS = 4000
 
 
 class _Signals:
@@ -132,6 +137,10 @@ class Agent:
 
     async def run_turn(self, session: Session, user_input: str) -> AsyncIterator[AgentEvent]:
         retrieved = await self._retrieve(user_input)
+        mentions = self._mentioned_files(user_input, session.workspace_root)
+        if mentions:
+            retrieved = retrieved or RetrievedContext()
+            retrieved.code_snippets = mentions + retrieved.code_snippets
         messages = self._builder.build(session, user_input, retrieved)
         session.add(Message.user(user_input))
         schemas = self._tool_schemas()
@@ -407,6 +416,24 @@ class Agent:
             ToolSchema(name=s.name, description=s.description, parameters=s.parameters)
             for s in self._registry.specs()
         ]
+
+    def _mentioned_files(self, text: str, workspace: Path) -> list[str]:
+        """Read files the user referenced with `@path` and return them as context snippets."""
+        root = workspace.resolve()
+        out: list[str] = []
+        for rel in dict.fromkeys(_MENTION_RE.findall(text)):  # de-duped, order-preserving
+            try:
+                path = (root / rel).resolve()
+                path.relative_to(root)  # stay inside the workspace
+            except (ValueError, OSError):
+                continue
+            if path.is_file():
+                try:
+                    body = path.read_text("utf-8", errors="replace")[:_MENTION_MAX_CHARS]
+                except OSError:
+                    continue
+                out.append(f"# {rel} (referenced by the user)\n{body}")
+        return out
 
     async def _retrieve(self, query: str) -> RetrievedContext | None:
         snippets: list[str] = []
