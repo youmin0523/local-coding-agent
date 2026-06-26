@@ -185,6 +185,10 @@
         const target = select || (conversations[0] && conversations[0].id);
         if (target) await selectConv(target);
       }
+      async function refreshList() {  // update the sidebar only — never reload the live log
+        const { conversations } = await (await fetch("/api/conversations")).json();
+        renderConvList(conversations);
+      }
       function renderConvList(list) {
         convList.innerHTML = "";
         list.forEach((c) => {
@@ -306,8 +310,8 @@
             hideThinking();
             if (turnText.trim()) transcript.push({ role: "assistant", text: turnText });
             updateCtx();
-            ev.close(); const cc = currentConv; setRunning(false); input.focus();
-            loadConversations(cc);  // refresh titles (first message names the chat)
+            ev.close(); setRunning(false); input.focus();
+            refreshList();  // update sidebar titles without reloading the live log
           }
         };
         ev.onerror = () => { hideThinking(); ev.close(); setRunning(false); };
