@@ -7,6 +7,7 @@ agent factory (real engine for `lca eval`, FakeProvider in tests).
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Callable
 from pathlib import Path
 
@@ -53,10 +54,8 @@ async def run_eval(factory: AgentFactory, tasks: list[EvalTask], workspace: Path
         for rel in written:
             path = workspace / rel
             if path.is_file():
-                try:
+                with contextlib.suppress(OSError):
                     produced.append(path.read_text("utf-8", errors="replace"))
-                except OSError:
-                    pass
         haystack = "\n".join([answer, *produced])
 
         total_calls += calls
