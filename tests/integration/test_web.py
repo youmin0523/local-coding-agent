@@ -92,6 +92,44 @@ def _noop_agent(approver) -> Agent:
     )
 
 
+def test_conversation_crud(tmp_path: Path):
+    client = TestClient(create_app(workspace=tmp_path, agent_builder=lambda a, m: _noop_agent(a)))
+    # a default conversation exists on startup
+    assert len(client.get("/api/conversations").json()["conversations"]) >= 1
+    cid = client.post("/api/conversations", json={"title": "work"}).json()["id"]
+    titles = [c["title"] for c in client.get("/api/conversations").json()["conversations"]]
+    assert "work" in titles
+    assert client.get(f"/api/conversations/{cid}").json()["messages"] == []  # new = empty
+    assert client.delete(f"/api/conversations/{cid}").json()["deleted"] is True
+    titles = [c["title"] for c in client.get("/api/conversations").json()["conversations"]]
+    assert "work" not in titles
+    # persistence directory is created
+    assert (tmp_path / ".lca" / "conversations").is_dir()
+
+
+def test_run_titles_and_records_conversation(tmp_path: Path):
+    def builder(approver, message):
+        return Agent(
+            FakeProvider([text_chunks("hello from lca")]),
+            build_default_registry(enable_web=False),
+            DefaultPolicy(),
+            approver,
+            model="fake",
+        )
+
+    client = TestClient(create_app(workspace=tmp_path, agent_builder=builder))
+    resp = client.post("/api/runs", json={"message": "fix the parser", "mode": "gated"}).json()
+    cid = resp["conversation_id"]
+    assert cid and resp["token_budget"]
+    _collect(client, resp["run_id"])
+    # the conversation is titled from the first message and records both turns
+    msgs = client.get(f"/api/conversations/{cid}").json()["messages"]
+    assert any(m["role"] == "user" and "fix the parser" in m["content"] for m in msgs)
+    assert any(m["role"] == "assistant" and "hello from lca" in m["content"] for m in msgs)
+    titles = [c["title"] for c in client.get("/api/conversations").json()["conversations"]]
+    assert any("fix the parser" in t for t in titles)
+
+
 @pytest.mark.asyncio
 async def test_web_approver_request_resolve():
     import asyncio
