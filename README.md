@@ -47,6 +47,14 @@ the 7B model.
   endpoints, accessible components, log triage, debugging, deployment, and
   document/slide/spreadsheet generation.
 - **MCP** client (filesystem/git/fetch) — native + MCP tools in one registry.
+- **Web chat UI** — multiple conversations (sidebar, new chat, persisted per purpose),
+  live "thinking" indicator, stop button, code-copy, a context-usage gauge, and
+  one-click Markdown export of a conversation. Auto-detects the engine port and
+  opens the browser itself; launch by double-clicking `start-web.bat`.
+- **~150-card → 184-card knowledge base** spanning the whole developer stack:
+  backend/frontend frameworks, databases, infra (k8s/Terraform/Kafka/OTel), and
+  cross-cutting patterns (OAuth2/JWT/REST/caching/idempotency/testing).
+- **Answers in Korean by default** (configurable); identifies itself as lca.
 
 ## Results (measured on-device)
 
@@ -70,6 +78,10 @@ the fast/fine-tunable model is **Qwen2.5-Coder-7B-Instruct**. Engine: **LM Studi
 (bundled CUDA-12.8 llama.cpp runtime), with Ollama as a swappable fallback.
 
 ## Quickstart
+
+Easiest (Windows): start LM Studio's server, then **double-click `start-web.bat`**
+(or the "lca 웹 시작" desktop shortcut) — it auto-detects the engine and opens the
+browser. `start-chat.bat` opens a terminal chat. Or use the CLI:
 
 ```bash
 uv sync                     # install (Python 3.12+, uv); extras: rag,search,mcp,web,browser
