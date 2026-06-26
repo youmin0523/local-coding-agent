@@ -1,9 +1,13 @@
 # Reference catalog index
 
-151 cards across 14 categories — surfaced by the reference_docs tool (with fetch_url for live detail).
+184 cards across 15 categories — surfaced by the reference_docs tool (with fetch_url for live detail).
 
 ## db
+- [MongoDB](https://www.mongodb.com/docs/) — Flexible/evolving schemas, document-shaped data, and rapid iteration. Prefer PostgreSQL fo
+- [MySQL](https://dev.mysql.com/doc/) — Mature relational workloads, especially LAMP/WordPress and shops standardized on MySQL. Po
 - [PostgreSQL](https://www.postgresql.org/docs/current/) — Use PostgreSQL as a general-purpose, ACID-compliant relational database when you need stro
+- [Redis](https://redis.io/docs/latest/) — Caching, sessions, rate limiting, leaderboards, queues, and pub/sub. Not a primary system-
+- [SQLite](https://www.sqlite.org/docs.html) — Embedded apps, desktop/CLI tools, tests, prototypes, and read-heavy single-node services. 
 
 ## deployment
 - [Alembic](https://alembic.sqlalchemy.org/en/latest/) — Schema migrations for SQLAlchemy/PostgreSQL across deploys.
@@ -55,13 +59,26 @@
 - [Whitespace](https://www.designsystems.com/space-grids-and-layouts/) — Layout composition, especially hero/landing and content-heavy pages.
 
 ## frontend
+- [Angular](https://angular.dev/) — Large enterprise SPAs wanting a complete, opinionated framework with strong typing and too
+- [Astro](https://docs.astro.build/) — Content-heavy, mostly-static sites (blogs, docs, marketing) where performance and minimal 
+- [Next.js](https://nextjs.org/docs) — Production React apps needing SSR/SSG/RSC, routing, and full-stack features. Prefer plain 
 - [React 19](https://react.dev/) — Use React 19 to build interactive UIs and full-stack web/native apps when you want first-c
 - [React Hooks](https://react.dev/reference/react/hooks) — State, side effects, and reusable stateful logic in React function components.
+- [React Router 7](https://reactrouter.com/) — React apps wanting first-class routing with data loading/mutations; framework mode for SSR
+- [SolidJS](https://docs.solidjs.com/) — Performance-critical reactive UIs wanting React-like JSX with finer-grained updates. Small
+- [SvelteKit](https://svelte.dev/docs/kit) — Fast, lightweight apps where small bundles and simple reactivity matter. Smaller ecosystem
 - [Tailwind CSS](https://tailwindcss.com/docs) — Use Tailwind CSS when you want to build and maintain custom UI rapidly by composing utilit
+- [Vue 3](https://vuejs.org/guide/) — Reactive SPAs/apps wanting an approachable, batteries-light framework. Nuxt for SSR. Choos
 - [Zustand](https://zustand.docs.pmnd.rs/) — When you need a lightweight, hook-based, boilerplate-free global state store for React (no
 
 ## infra
+- [Apache Kafka](https://kafka.apache.org/documentation/) — High-volume event streaming, log aggregation, and decoupling services. For simple task que
 - [Docker](https://docs.docker.com/) — Use Docker to package an application and its dependencies into portable, reproducible cont
+- [Kubernetes](https://kubernetes.io/docs/) — Orchestrating many containers across nodes with self-healing, scaling, and rollouts. Overk
+- [OpenTelemetry](https://opentelemetry.io/docs/) — Standardized observability (esp. distributed tracing) across polyglot services without ven
+- [Prometheus](https://prometheus.io/docs/) — Metrics + alerting for services and infrastructure. Pair with OpenTelemetry for traces/log
+- [RabbitMQ](https://www.rabbitmq.com/docs) — Task queues, RPC, and flexible message routing with reliable delivery. Choose Kafka for hi
+- [Terraform](https://developer.hashicorp.com/terraform/docs) — Provisioning and versioning cloud infrastructure reproducibly across AWS/GCP/Azure. For ap
 
 ## language
 - [Node.js](https://nodejs.org/api/index.html) — Use Node.js to run JavaScript/TypeScript outside the browser for servers, APIs, CLIs, buil
@@ -115,6 +132,16 @@
 
 ## orm
 - [SQLAlchemy 2.0 (async)](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html) — Use when building non-blocking, IO-concurrent apps (e.g. asyncio/FastAPI services) that ne
+
+## pattern
+- [Caching strategies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching) — Reducing latency and DB load for read-heavy data. Don't cache rarely-read or strongly-cons
+- [Idempotency](https://docs.stripe.com/api/idempotent_requests) — Any operation that may be retried (network flakiness, queues, webhooks) where double-execu
+- [JWT best practices](https://datatracker.ietf.org/doc/html/rfc8725) — Stateless auth tokens across services. For revocable sessions, prefer server-side sessions
+- [OAuth2 & OIDC](https://oauth.net/2/) — Delegated auth / single sign-on and 'login with X'. For first-party sessions, a simple ser
+- [Pagination](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/GET) — Any list endpoint over non-trivial data. Prefer cursor-based for large or frequently-chang
+- [Rate limiting](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429) — Protecting APIs from abuse/overload and enforcing quotas/fair use.
+- [REST API design](https://github.com/microsoft/api-guidelines) — Public/standard HTTP APIs. Consider GraphQL for client-driven field selection, gRPC for in
+- [Testing strategy](https://martinfowler.com/articles/practical-test-pyramid.html) — Structuring a maintainable, fast, trustworthy test suite for any codebase.
 
 ## recipe
 - [asyncio 'Event loop is closed' (pytest-asyncio 1.x async DB tests)](https://pytest-asyncio.readthedocs.io/en/stable/concepts.html) — 'RuntimeError: Event loop is closed' in pytest when testing FastAPI + SQLAlchemy async + a
@@ -178,5 +205,13 @@
 - [Vite](https://vite.dev/guide/) — Use Vite as the dev server and build tool for modern web/SPA projects (vanilla or framewor
 
 ## web-framework
+- [Django](https://docs.djangoproject.com/en/stable/) — Full-featured server-rendered or API backends where you want the ORM, admin, and auth out 
 - [Express](https://expressjs.com/) — Use Express when you want a fast, minimal, unopinionated Node.js framework to build HTTP A
 - [FastAPI](https://fastapi.tiangolo.com/) — Use FastAPI to build high-performance, type-safe Python REST/JSON APIs (and async backends
+- [Flask](https://flask.palletsprojects.com/) — Small/medium services and when you want full control of the stack. Prefer FastAPI for asyn
+- [Gin](https://gin-gonic.com/docs/) — High-performance Go HTTP APIs/microservices wanting minimal overhead and a single deployab
+- [gRPC](https://grpc.io/docs/) — Low-latency, high-throughput service-to-service communication and polyglot microservices. 
+- [NestJS](https://docs.nestjs.com/) — Structured, enterprise TypeScript backends wanting strong architecture and DI. Prefer plai
+- [Ruby on Rails](https://guides.rubyonrails.org/) — Rapid full-stack product development where convention and developer velocity matter most.
+- [Spring Boot](https://docs.spring.io/spring-boot/index.html) — Enterprise JVM backends, especially in Java/Kotlin shops needing mature ecosystem, transac
+- [Strawberry GraphQL](https://strawberry.rocks/) — Python GraphQL APIs when clients need flexible field selection. Prefer REST/FastAPI for si
