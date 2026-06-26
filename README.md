@@ -62,16 +62,20 @@ the 7B model.
 (JWT/HS256, schema normalization to 3NF, simulation clocks, parsing, motor
 selection, …), running the **30B brain locally** on the hardware below:
 
-- **Generation mode (`--no-verify`): 94% pass (16/17)**, tool-validity 83% — produces
-  correct, executable code (the harness scores the files written + the execution
-  output, not just the chat summary).
-- **End-to-end with the verification gate (`--verify`): 82% pass (14/17)**,
-  tool-validity 89%. It's lower on purpose: the deliver-or-abstain gate withheld 2
-  otherwise-correct answers (false abstentions) and didn't abstain on the 1 task that
-  should — i.e. the abstention threshold (`LCA_VERIFY_PASS_THRESHOLD`, default 0.6)
-  wants calibration on a held-out set. That's the honest current state of the gate.
+The 30B runs at temperature and the harness samples **once** per task, so a single
+run is noisy — be honest about it:
 
-Single run on the hardware below; re-run with `uv run lca eval`.
+- **Generation (`--no-verify`): ~94% (16/17)** on a representative run — correct,
+  executable code (harness scores the files written + execution output).
+- **End-to-end (`--verify`): observed 59–82% across runs**, tool-validity ~89%. The
+  spread is dominated by single-sample 30B variance and strict substring scoring
+  (long answers that miss an exact `must_contain` token), not by the gate. The gate's
+  *logic* was hardened in M74 — passing execution now dominates the verdict and
+  `run_checks` no longer counts "no tests"/lint nits as correctness failures, so it
+  stops abstaining on correct code (5 unit tests lock this in).
+
+Best-of-N (which the router uses for hard tasks) stabilizes this; the eval samples
+once. Re-run with `uv run lca eval`.
 
 ## Hardware target
 
