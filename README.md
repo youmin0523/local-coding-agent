@@ -30,7 +30,9 @@ the 7B model.
 
 ## What it can do
 
-- **Write / edit / run code** across a real repo (RAG-indexed, cited by `file:line`).
+- **Write / edit / run code** across a real repo (RAG-indexed, cited by `file:line`),
+  with whitespace-tolerant edits, a whole-repo symbol map (`repo_map` / `lca map`),
+  and **reversible changes** — every edit is checkpointed, `lca undo` rolls it back.
 - **Summarize logs** and **debug from a traceback**, grounded in the actual lines.
 - **Search the web** and answer with citations (or abstain).
 - **Open a real browser** (Playwright) to screenshot a page and run E2E smoke
