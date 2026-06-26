@@ -39,6 +39,15 @@ async def test_execution_failure_dominates():
     assert verdict.confidence >= 0.9
 
 
+async def test_execution_pass_dominates_over_judges():
+    # Judges would reject, but passing execution (run_checks green) must deliver,
+    # not abstain — execution is the oracle in both directions.
+    gate = VerificationGate([_FakeJudge("a", False), _FakeJudge("b", False)])
+    verdict = await gate.verify_answer("task", "answer", execution_passed=True)
+    assert verdict.verdict == "pass"
+    assert verdict.confidence >= 0.9
+
+
 async def test_llm_judge_parses_json_verdict():
     provider = FakeProvider(
         [text_chunks('{"passed": "yes", "confidence": 0.8, "reason": "looks right"}')]

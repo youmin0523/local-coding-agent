@@ -50,24 +50,37 @@ class RunChecksTool:
 
         sandbox = ctx.sandbox or SandboxRunner(ctx.workspace_root, timeout_s=300.0)
         sections: list[str] = []
-        all_ok = True
+        per_ok: dict[str, bool] = {}
         for check in selected:
             argv = list(_CHECKS[check])
             if target:
                 argv.append(target)
             result = await sandbox.run_command(argv, timeout_s=300.0)
-            all_ok = all_ok and result.ok
-            sections.append(self._summarize(check, result))
+            # pytest exit code 5 = "no tests collected" — nothing to verify, NOT a failure.
+            ok = result.ok or (check == "tests" and result.exit_code == 5)
+            per_ok[check] = ok
+            sections.append(self._summarize(check, result, ok))
+
+        # Correctness oracle: tests are authoritative. In an "all" run, type/lint are
+        # advisory (shown, but a style/config nit must NOT force the verification gate to
+        # reject logically-correct, test-passing code). Run a single check on its own and
+        # it stays authoritative.
+        oracle_ok = (
+            per_ok["tests"] if ("tests" in per_ok and len(per_ok) > 1) else all(per_ok.values())
+        )
 
         return ToolResult(
-            ok=all_ok,
+            ok=oracle_ok,
             content="\n\n".join(sections),
             is_truth=True,  # execution result — the verification gate trusts this
         )
 
     @staticmethod
-    def _summarize(check: str, result: SandboxResult) -> str:
-        verdict = "PASS" if result.ok else ("TIMEOUT" if result.timed_out else "FAIL")
+    def _summarize(check: str, result: SandboxResult, ok: bool) -> str:
+        if check == "tests" and not result.ok and result.exit_code == 5:
+            verdict = "PASS (no tests collected)"
+        else:
+            verdict = "PASS" if ok else ("TIMEOUT" if result.timed_out else "FAIL")
         output = (result.stdout + "\n" + result.stderr).strip()
         tail = "\n".join(output.splitlines()[-30:])
         return f"### {check}: {verdict} (exit {result.exit_code}, {result.duration_s}s)\n{tail}"

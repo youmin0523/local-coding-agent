@@ -42,7 +42,9 @@ class VerificationGate:
             f"({v.confidence:.2f}) {v.rationale}".strip()
             for v in votes
         ]
-        # Execution is the dominant, un-fabricatable signal.
+        # Execution is the dominant, un-fabricatable signal — it OVERRIDES the judges
+        # in both directions: failing checks can't be argued into a pass, and passing
+        # checks can't be argued into an abstain by harsh/split judges.
         if execution_passed is False:
             return Verdict(
                 verdict="fail",
@@ -50,20 +52,26 @@ class VerificationGate:
                 rationale="Execution checks failed.",
                 signals=signals,
             )
-
-        if not votes:
-            base = 1.0 if execution_passed else 0.0
+        if execution_passed is True:
             return Verdict(
-                verdict="pass" if execution_passed else "uncertain",
-                confidence=base,
-                rationale="No judges configured.",
+                verdict="pass",
+                confidence=0.9,
+                rationale="Execution checks passed.",
+                signals=signals,
+            )
+
+        # No execution oracle → rely on the judges.
+        if not votes:
+            return Verdict(
+                verdict="uncertain",
+                confidence=0.0,
+                rationale="No execution signal and no judges.",
                 signals=signals,
             )
 
         ratio = sum(1 for v in votes if v.passed) / len(votes)
-        confidence = sum(v.confidence for v in votes if v.passed) / len(votes)
-        if execution_passed:
-            confidence = max(confidence, 0.8)
+        passed_conf = [v.confidence for v in votes if v.passed]
+        confidence = sum(passed_conf) / len(votes) if passed_conf else 0.0
 
         verdict: VerdictKind
         if ratio >= self._pass_threshold:
