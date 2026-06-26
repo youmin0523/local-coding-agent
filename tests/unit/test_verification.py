@@ -39,6 +39,14 @@ async def test_execution_failure_dominates():
     assert verdict.confidence >= 0.9
 
 
+async def test_low_confidence_pass_becomes_abstention():
+    # judges agree (ratio passes) but with weak confidence + no execution oracle →
+    # abstain rather than deliver an unsure, ungrounded answer
+    gate = VerificationGate([_FakeJudge("a", True, 0.3), _FakeJudge("b", True, 0.3)])
+    verdict = await gate.verify_answer("task", "answer")
+    assert verdict.verdict == "uncertain"
+
+
 async def test_execution_pass_dominates_over_judges():
     # Judges would reject, but passing execution (run_checks green) must deliver,
     # not abstain — execution is the oracle in both directions.

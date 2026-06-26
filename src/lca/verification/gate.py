@@ -25,6 +25,10 @@ class Verifier(Protocol):
     ) -> Verdict | None: ...
 
 
+# Below this mean judge confidence, a judges-only "pass" becomes an abstention.
+_MIN_PASS_CONFIDENCE = 0.5
+
+
 class VerificationGate:
     def __init__(self, judges: list[Judge], *, pass_threshold: float = 0.6) -> None:
         self._judges = judges
@@ -75,7 +79,9 @@ class VerificationGate:
 
         verdict: VerdictKind
         if ratio >= self._pass_threshold:
-            verdict = "pass"
+            # Enough judges pass — but abstain if their confidence is weak. A
+            # low-confidence, execution-ungrounded answer is not a confident pass.
+            verdict = "pass" if confidence >= _MIN_PASS_CONFIDENCE else "uncertain"
         elif ratio <= (1.0 - self._pass_threshold):
             verdict = "fail"
         else:
