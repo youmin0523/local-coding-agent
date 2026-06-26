@@ -48,6 +48,20 @@ the 7B model.
   document/slide/spreadsheet generation.
 - **MCP** client (filesystem/git/fetch) — native + MCP tools in one registry.
 
+## Results (measured on-device)
+
+`lca eval` on **17 verifiable tasks** drawn from the developer's own domains
+(JWT/HS256, schema normalization to 3NF, simulation clocks, parsing, motor
+selection, …), running the **30B brain locally** on the hardware below:
+
+- **94% pass rate (16/17)** producing correct, executable code — the harness scores
+  the files the agent wrote and the execution output, not just the chat summary.
+- **83% tool-call validity (99/119)** — invalid tool calls are caught and retried.
+
+The single miss is an *abstention* task: it requires `--verify` mode, where the
+verification gate deliberately withholds low-confidence answers. Numbers are from a
+single run; re-run with `uv run lca eval`.
+
 ## Hardware target
 
 NVIDIA RTX 5070 Laptop (Blackwell, 8 GB VRAM) · Ryzen 9 · 32 GB RAM · Windows 11.

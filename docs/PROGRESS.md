@@ -100,6 +100,13 @@ uv run lint-imports       # architecture contract: KEPT
 - QLoRA (M11) is gated behind `training/smoke_test.py` — only proceed if it prints SMOKE OK.
 - A richer React/shadcn web frontend could replace the (already functional) single-file UI.
 
+## Measured results (2026-06, on the RTX 5070 Laptop)
+`lca eval` on 17 verifiable domain tasks, 30B brain, generation mode (`--no-verify`),
+with the artifact-aware harness (scores files written + execution output):
+**94% pass (16/17), tool-validity 83% (99/119)**. The one miss is an abstention task
+(needs `--verify`). An earlier 6% reading was a harness bug — it checked only the chat
+summary while the agent writes code to files (fixed in M59).
+
 ## Honest expectation
 On your recurring work in familiar repos, with verification + memory mature, this
 reaches Claude-class **reliability on those tasks**, and refuses to be confidently
