@@ -76,3 +76,90 @@ def _regex_outline(source: str) -> list[str]:
         if match:
             out.append(f"  L{i}: {match.group(0).strip()}")
     return out
+
+
+_MAP_SKIP_DIRS = {
+    ".git",
+    ".venv",
+    "venv",
+    "node_modules",
+    "__pycache__",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".pytest_cache",
+    "dist",
+    "build",
+    ".lca",
+    "data",
+    "models",
+}
+_MAP_SUFFIXES = {".py", ".js", ".jsx", ".ts", ".tsx", ".go", ".rs", ".java", ".rb", ".php", ".cs"}
+_MAP_MAX_FILES = 200
+
+
+def top_level_symbols(source: str, *, python: bool) -> list[str]:
+    """Top-level classes/functions of a file (compact, for the repo map)."""
+    if python:
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            pass
+        else:
+            out: list[str] = []
+            for node in tree.body:
+                if isinstance(node, ast.ClassDef):
+                    out.append(f"class {node.name}")
+                elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+                    out.append(f"def {node.name}")
+            return out
+    syms: list[str] = []
+    for line in source.splitlines():
+        if line and not line[0].isspace():  # top-level only (column 0)
+            match = _DEF_RE.match(line)
+            if match:
+                syms.append(match.group(0).strip())
+    return syms
+
+
+class RepoMapTool:
+    spec = ToolSpec(
+        name="repo_map",
+        description=(
+            "A compact map of the repository: each code file with its top-level classes "
+            "and functions. A fast whole-repo overview to orient before reading files."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Subdirectory to map; default whole repo.",
+                },
+                "max_files": {"type": "integer", "description": "Cap on files listed."},
+            },
+        },
+        risk=RiskLevel.READ,
+    )
+
+    async def run(self, args: dict[str, Any], ctx: ToolContext) -> ToolResult:
+        root = ctx.workspace_root.resolve()
+        scan = root / str(args["path"]) if args.get("path") else root
+        limit = int(args.get("max_files") or _MAP_MAX_FILES)
+        lines: list[str] = []
+        for p in sorted(scan.rglob("*")):
+            if len(lines) >= limit:
+                lines.append("…[truncated — narrow with path]")
+                break
+            if not p.is_file() or any(d in _MAP_SKIP_DIRS for d in p.parts):
+                continue
+            if p.suffix.lower() not in _MAP_SUFFIXES:
+                continue
+            try:
+                syms = top_level_symbols(
+                    p.read_text("utf-8", errors="replace"), python=p.suffix == ".py"
+                )
+            except OSError:
+                continue
+            if syms:
+                lines.append(f"{to_rel(root, p)}: {', '.join(syms)}")
+        return ToolResult.ok_text("\n".join(lines) if lines else "(no symbols found)")

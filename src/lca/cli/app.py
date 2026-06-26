@@ -381,6 +381,19 @@ def skills_cmd(path: str = typer.Option(".", "--path", "-C", help="Workspace dir
     console.print(table)
 
 
+@app.command(name="map")
+def repo_map(path: str = typer.Option(".", "--path", "-C", help="Workspace directory.")) -> None:
+    """Print a compact whole-repo map: each code file's top-level classes/functions."""
+    from lca.tools.base import ToolContext
+    from lca.tools.symbols import RepoMapTool
+
+    ws = Path(path).resolve()
+    ctx = ToolContext(
+        workspace_root=ws, approver=AutoApprover(), session=Session(workspace_root=ws)
+    )
+    console.print(asyncio.run(RepoMapTool().run({}, ctx)).content)
+
+
 @app.command()
 def undo(
     path: str = typer.Option(".", "--path", "-C", help="Workspace directory."),

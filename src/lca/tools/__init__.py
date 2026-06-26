@@ -22,7 +22,7 @@ from lca.tools.run_checks import RunChecksTool
 from lca.tools.search_code import SearchCodeTool
 from lca.tools.secret_scan import SecretScanTool
 from lca.tools.shell import RunShellTool
-from lca.tools.symbols import ListSymbolsTool
+from lca.tools.symbols import ListSymbolsTool, RepoMapTool
 from lca.tools.web.fetch import FetchUrlTool
 from lca.tools.web.search import WebSearchTool
 
@@ -36,6 +36,7 @@ __all__ = [
     "FetchUrlTool",
     "ListSymbolsTool",
     "ReferenceDocsTool",
+    "RepoMapTool",
     "RiskLevel",
     "RunChecksTool",
     "RunPythonTool",
@@ -63,6 +64,7 @@ def build_default_registry(
         *read_tools(),
         *write_tools(),
         ListSymbolsTool(),
+        RepoMapTool(),
         ReferenceDocsTool(),
         SecretScanTool(),
         BrowserScreenshotTool(),
