@@ -197,6 +197,14 @@ class ConversationManager:
     def exists(self, run_id: str) -> bool:
         return run_id in self._runs
 
+    def stop(self, run_id: str) -> bool:
+        """Cancel an in-flight run; the drive task's finally still persists + ends the stream."""
+        run = self._runs.get(run_id)
+        if run and run.task and not run.task.done():
+            run.task.cancel()
+            return True
+        return False
+
     async def stream(self, run_id: str) -> AsyncIterator[dict[str, object]]:
         run = self._runs[run_id]
         while True:
@@ -265,6 +273,10 @@ def create_app(*, workspace: Path, agent_builder: AgentBuilder | None = None) ->
                 yield {"data": json.dumps(event)}
 
         return EventSourceResponse(source())
+
+    @app.post("/api/runs/{run_id}/stop")
+    async def stop_run(run_id: str) -> dict[str, bool]:
+        return {"stopped": manager.stop(run_id)}
 
     @app.post("/api/approvals/{request_id}")
     async def approve(request_id: str, req: ApprovalRequest) -> dict[str, bool]:

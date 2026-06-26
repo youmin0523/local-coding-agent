@@ -76,6 +76,8 @@
       #send { background: var(--accent); color: #fff; border: none; border-radius: 8px;
         padding: 0 20px; font-size: 14px; cursor: pointer; }
       #send:disabled { opacity: .5; cursor: default; }
+      #stop { display: none; background: var(--red); color: #fff; border: none;
+        border-radius: 8px; padding: 0 20px; font-size: 14px; cursor: pointer; }
     </style>
   </head>
   <body>
@@ -104,6 +106,7 @@
       <footer>
         <textarea id="input" rows="2" placeholder="Ask the agent… (Enter to send)"></textarea>
         <button id="send">Send</button>
+        <button id="stop">■ 중단</button>
       </footer>
     </div>
 
@@ -117,6 +120,17 @@
       const ctxEl = document.getElementById("ctx");
       const convList = document.getElementById("convList");
       const newChat = document.getElementById("newChat");
+      const stop = document.getElementById("stop");
+      let currentRunId = null;
+      function setRunning(on) {
+        send.style.display = on ? "none" : "";
+        stop.style.display = on ? "" : "none";
+        send.disabled = on;
+        if (!on) currentRunId = null;
+      }
+      stop.onclick = () => {
+        if (currentRunId) fetch(`/api/runs/${currentRunId}/stop`, { method: "POST" });
+      };
       let transcript = [];          // {role, text} for the current conversation
       let currentConv = null;
       let ctxBudget = 16384;
@@ -211,7 +225,7 @@
       async function sendMessage() {
         const text = input.value.trim();
         if (!text) return;
-        input.value = ""; send.disabled = true;
+        input.value = ""; setRunning(true);
         el("msg user", esc(text));
         transcript.push({ role: "user", text });
         updateCtx();
@@ -233,6 +247,7 @@
         });
         const data = await res.json();
         const run_id = data.run_id;
+        currentRunId = run_id;
         if (data.conversation_id) currentConv = data.conversation_id;
         if (data.token_budget) { ctxBudget = parseInt(data.token_budget, 10) || ctxBudget; }
         const ev = new EventSource(`/api/runs/${run_id}/events`);
@@ -291,11 +306,11 @@
             hideThinking();
             if (turnText.trim()) transcript.push({ role: "assistant", text: turnText });
             updateCtx();
-            ev.close(); send.disabled = false; input.focus();
-            loadConversations(currentConv);  // refresh titles (first message names the chat)
+            ev.close(); const cc = currentConv; setRunning(false); input.focus();
+            loadConversations(cc);  // refresh titles (first message names the chat)
           }
         };
-        ev.onerror = () => { hideThinking(); ev.close(); send.disabled = false; };
+        ev.onerror = () => { hideThinking(); ev.close(); setRunning(false); };
       }
 
       send.onclick = sendMessage;

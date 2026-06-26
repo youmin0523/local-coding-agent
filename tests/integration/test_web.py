@@ -82,6 +82,11 @@ def test_events_unknown_run_404(tmp_path: Path):
     assert client.get("/api/runs/nope/events").status_code == 404
 
 
+def test_stop_unknown_run_returns_false(tmp_path: Path):
+    client = TestClient(create_app(workspace=tmp_path, agent_builder=lambda a, m: _noop_agent(a)))
+    assert client.post("/api/runs/nope/stop").json() == {"stopped": False}
+
+
 def _noop_agent(approver) -> Agent:
     return Agent(
         FakeProvider([text_chunks("ok")]),
