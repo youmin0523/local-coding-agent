@@ -524,6 +524,11 @@ def evaluate(
     path: str = typer.Option(".", "--path", "-C", help="Workspace directory."),
     tasks_file: str | None = typer.Option(None, "--tasks", help="JSONL task file (optional)."),
     verify: bool = typer.Option(True, "--verify/--no-verify", help="Verify answers during eval."),
+    samples: int = typer.Option(
+        1,
+        "--samples",
+        help="Best-of-N candidates per task (stabilizes the noisy single-sample run).",
+    ),
 ) -> None:
     """Run the eval suite against the local engine and print a scorecard."""
     settings = get_settings()
@@ -538,6 +543,7 @@ def evaluate(
             settings=settings,
             model_logical=model_logical,
             verify=verify,
+            samples=samples,
             use_memory=False,
         )
 
