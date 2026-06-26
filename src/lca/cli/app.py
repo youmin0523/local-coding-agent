@@ -382,6 +382,26 @@ def skills_cmd(path: str = typer.Option(".", "--path", "-C", help="Workspace dir
 
 
 @app.command()
+def undo(
+    path: str = typer.Option(".", "--path", "-C", help="Workspace directory."),
+    steps: int = typer.Option(1, "--steps", "-n", help="How many edits to undo."),
+) -> None:
+    """Revert the agent's most recent file edit(s) (checkpointed before each write)."""
+    from lca.tools.checkpoint import Checkpointer
+
+    cp = Checkpointer(Path(path).resolve())
+    if cp.pending() == 0:
+        console.print("[yellow]Nothing to undo.[/]")
+        return
+    for _ in range(max(1, steps)):
+        desc = cp.undo_last()
+        if desc is None:
+            break
+        console.print(f"[green]undo[/] {desc}")
+    console.print(f"[dim]{cp.pending()} edit(s) still undoable[/]")
+
+
+@app.command()
 def chat(
     path: str = typer.Option(".", "--path", "-C", help="Workspace directory."),
     auto: bool = typer.Option(False, "--auto", help="Autonomous mode."),

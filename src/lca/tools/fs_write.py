@@ -11,6 +11,7 @@ import difflib
 from typing import Any
 
 from lca.tools.base import Artifact, RiskLevel, ToolContext, ToolResult, ToolSpec
+from lca.tools.checkpoint import Checkpointer
 from lca.tools.secret_scan import scan_text
 from lca.tools.util import safe_resolve, to_rel
 
@@ -57,6 +58,7 @@ class WriteFileTool:
         new_content = str(args["content"])
         old_content = path.read_text("utf-8", errors="replace") if path.is_file() else ""
         rel = to_rel(ctx.workspace_root, path)
+        Checkpointer(ctx.workspace_root).record(path)  # reversible via `lca undo`
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(new_content, encoding="utf-8")
         diff = _unified_diff(old_content, new_content, rel) or "(new file)"
@@ -102,6 +104,7 @@ class EditFileTool:
             )
         updated = content.replace(old_string, new_string, 1)
         rel = to_rel(ctx.workspace_root, path)
+        Checkpointer(ctx.workspace_root).record(path)  # reversible via `lca undo`
         path.write_text(updated, encoding="utf-8")
         diff = _unified_diff(content, updated, rel)
         return ToolResult.ok_text(
