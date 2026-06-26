@@ -87,6 +87,15 @@ def test_stop_unknown_run_returns_false(tmp_path: Path):
     assert client.post("/api/runs/nope/stop").json() == {"stopped": False}
 
 
+def test_index_html_served_with_new_ui(tmp_path: Path):
+    client = TestClient(create_app(workspace=tmp_path, agent_builder=lambda a, m: _noop_agent(a)))
+    r = client.get("/")
+    assert r.status_code == 200
+    # the rewritten UI: conversation sidebar, stop button, markdown export, context gauge
+    for marker in ('id="convList"', 'id="stop"', 'id="copyMd"', 'id="ctx"', "sendMessage"):
+        assert marker in r.text
+
+
 def _noop_agent(approver) -> Agent:
     return Agent(
         FakeProvider([text_chunks("ok")]),
