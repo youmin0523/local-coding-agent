@@ -62,13 +62,16 @@ the 7B model.
 (JWT/HS256, schema normalization to 3NF, simulation clocks, parsing, motor
 selection, …), running the **30B brain locally** on the hardware below:
 
-- **94% pass rate (16/17)** producing correct, executable code — the harness scores
-  the files the agent wrote and the execution output, not just the chat summary.
-- **83% tool-call validity (99/119)** — invalid tool calls are caught and retried.
+- **Generation mode (`--no-verify`): 94% pass (16/17)**, tool-validity 83% — produces
+  correct, executable code (the harness scores the files written + the execution
+  output, not just the chat summary).
+- **End-to-end with the verification gate (`--verify`): 82% pass (14/17)**,
+  tool-validity 89%. It's lower on purpose: the deliver-or-abstain gate withheld 2
+  otherwise-correct answers (false abstentions) and didn't abstain on the 1 task that
+  should — i.e. the abstention threshold (`LCA_VERIFY_PASS_THRESHOLD`, default 0.6)
+  wants calibration on a held-out set. That's the honest current state of the gate.
 
-The single miss is an *abstention* task: it requires `--verify` mode, where the
-verification gate deliberately withholds low-confidence answers. Numbers are from a
-single run; re-run with `uv run lca eval`.
+Single run on the hardware below; re-run with `uv run lca eval`.
 
 ## Hardware target
 

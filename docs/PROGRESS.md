@@ -103,9 +103,12 @@ uv run lint-imports       # architecture contract: KEPT
 ## Measured results (2026-06, on the RTX 5070 Laptop)
 `lca eval` on 17 verifiable domain tasks, 30B brain, generation mode (`--no-verify`),
 with the artifact-aware harness (scores files written + execution output):
-**94% pass (16/17), tool-validity 83% (99/119)**. The one miss is an abstention task
-(needs `--verify`). An earlier 6% reading was a harness bug — it checked only the chat
-summary while the agent writes code to files (fixed in M59).
+**94% pass (16/17), tool-validity 83% (99/119)**. End-to-end with the verification gate
+(`--verify`): **82% (14/17), tool-validity 89%** — lower because the deliver-or-abstain
+gate withheld 2 correct answers and missed the 1 intended-abstain task, so the threshold
+(`LCA_VERIFY_PASS_THRESHOLD`, default 0.6) wants held-out calibration. An earlier 6%
+reading was a harness bug — it checked only the chat summary while the agent writes code
+to files (fixed in M59).
 
 ## Honest expectation
 On your recurring work in familiar repos, with verification + memory mature, this
