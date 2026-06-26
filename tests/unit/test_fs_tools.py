@@ -73,6 +73,18 @@ async def test_edit_missing_string_errors(tmp_path: Path):
     assert not res.ok
 
 
+async def test_edit_whitespace_flexible_match(tmp_path: Path):
+    ctx = _ctx(tmp_path)
+    (tmp_path / "h.py").write_text("def f():\n    return 1\n")  # 4-space indent
+    # agent supplies the line with different (2-space) indentation — exact match fails,
+    # whitespace-flexible match should still apply it
+    res = await EditFileTool().run(
+        {"path": "h.py", "old_string": "  return 1", "new_string": "    return 42"}, ctx
+    )
+    assert res.ok
+    assert (tmp_path / "h.py").read_text() == "def f():\n    return 42\n"
+
+
 async def test_read_file_path_escape_raises(tmp_path: Path):
     ctx = _ctx(tmp_path)
     with pytest.raises(ToolError):

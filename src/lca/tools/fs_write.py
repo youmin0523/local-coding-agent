@@ -28,6 +28,40 @@ def _secret_warning(content: str) -> str:
     )
 
 
+def _locate(content: str, old: str) -> tuple[int, int] | str:
+    """Find a unique span for ``old`` in ``content``: exact first, then whitespace-
+    flexible (matching on stripped lines, so indentation/trailing-space drift is OK).
+
+    Returns ``(start, end)`` char offsets, or an error string explaining the miss.
+    """
+    exact = content.count(old)
+    if exact == 1:
+        i = content.index(old)
+        return (i, i + len(old))
+    if exact > 1:
+        return f"old_string is not unique ({exact} exact matches); add more surrounding context."
+
+    old_lines = old.splitlines()
+    if not old_lines:
+        return "old_string not found; read the file and copy an exact snippet."
+    stripped_old = [ln.strip() for ln in old_lines]
+    file_lines = content.splitlines(keepends=True)
+    stripped_file = [ln.strip() for ln in file_lines]
+    hits = [
+        start
+        for start in range(len(file_lines) - len(old_lines) + 1)
+        if stripped_file[start : start + len(old_lines)] == stripped_old
+    ]
+    if len(hits) == 1:
+        start = hits[0]
+        s_off = sum(len(file_lines[k]) for k in range(start))
+        e_off = sum(len(file_lines[k]) for k in range(start + len(old_lines)))
+        return (s_off, e_off)
+    if len(hits) > 1:
+        return f"old_string matches {len(hits)} places (whitespace-insensitive); add more context."
+    return "old_string not found; read the file and copy an exact snippet."
+
+
 def _unified_diff(old: str, new: str, path: str) -> str:
     diff = difflib.unified_diff(
         old.splitlines(keepends=True),
@@ -73,8 +107,9 @@ class EditFileTool:
     spec = ToolSpec(
         name="edit_file",
         description=(
-            "Replace an exact, unique substring in a workspace file. Fails if the "
-            "old_string is missing or not unique."
+            "Replace a unique snippet in a workspace file. Matches exactly first, then "
+            "whitespace-flexibly (indentation/trailing-space drift is tolerated). Fails "
+            "with guidance if the snippet is missing or not unique."
         ),
         parameters={
             "type": "object",
@@ -95,14 +130,15 @@ class EditFileTool:
         old_string = str(args["old_string"])
         new_string = str(args["new_string"])
         content = path.read_text("utf-8", errors="replace")
-        count = content.count(old_string)
-        if count == 0:
-            return ToolResult.error("old_string not found; read the file and copy it exactly.")
-        if count > 1:
-            return ToolResult.error(
-                f"old_string is not unique ({count} matches); add more context."
-            )
-        updated = content.replace(old_string, new_string, 1)
+        located = _locate(content, old_string)
+        if isinstance(located, str):
+            return ToolResult.error(located)
+        start, end = located
+        # Preserve a trailing newline if the matched block had one but the replacement doesn't,
+        # so a whitespace-flexible block edit can't accidentally merge the following line.
+        if content[start:end].endswith("\n") and not new_string.endswith("\n"):
+            new_string += "\n"
+        updated = content[:start] + new_string + content[end:]
         rel = to_rel(ctx.workspace_root, path)
         Checkpointer(ctx.workspace_root).record(path)  # reversible via `lca undo`
         path.write_text(updated, encoding="utf-8")
