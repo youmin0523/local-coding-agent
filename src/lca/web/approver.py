@@ -17,7 +17,7 @@ class WebApprover:
     def __init__(self) -> None:
         self._pending: dict[str, asyncio.Future[bool]] = {}
 
-    async def request(self, call: ToolCall, risk: RiskLevel) -> bool:
+    async def request(self, call: ToolCall, risk: RiskLevel, preview: str = "") -> bool:
         loop = asyncio.get_running_loop()
         fut: asyncio.Future[bool] = loop.create_future()
         self._pending[call.id] = fut

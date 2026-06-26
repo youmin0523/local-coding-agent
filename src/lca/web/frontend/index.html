@@ -283,9 +283,12 @@
             showThinking("결과 분석 중");
           } else if (m.type === "approval_required") {
             hideThinking();
+            const detail = m.preview
+              ? `<pre>${diffHtml(m.preview)}</pre>`
+              : `<div class="muted">${esc(JSON.stringify(m.call.arguments))}</div>`;
             const box = el("approval",
               `<b>Approval required</b> — <span style="font-family:var(--mono)">${esc(m.call.name)}</span>
-               (${m.risk}) <div class="muted">${esc(JSON.stringify(m.call.arguments))}</div>`);
+               (${m.risk})${detail}`);
             const allow = document.createElement("button"); allow.className = "allow"; allow.textContent = "Allow";
             const deny = document.createElement("button"); deny.className = "deny"; deny.textContent = "Deny";
             const decide = (approved) => {

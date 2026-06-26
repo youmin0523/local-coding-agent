@@ -42,6 +42,7 @@ from lca.permissions.policy import Decision, PermissionPolicy
 from lca.permissions.sandbox import SandboxRunner
 from lca.providers.base import ChatRequest, LLMProvider, ToolSchema
 from lca.tools.base import ToolContext, ToolResult, ToolSpec
+from lca.tools.preview import preview_call
 from lca.tools.registry import ToolRegistry
 
 if TYPE_CHECKING:
@@ -362,8 +363,9 @@ class Agent:
         decision = self._policy.evaluate(call, spec.risk, session.mode, session.allow_cache)
         if decision == Decision.ASK:
             self._metrics.incr("approvals_requested")
-            yield ApprovalRequired(request_id=call.id, call=call, risk=spec.risk)
-            approved = await self._approver.request(call, spec.risk)
+            preview = preview_call(call, session.workspace_root)  # diff/command to review
+            yield ApprovalRequired(request_id=call.id, call=call, risk=spec.risk, preview=preview)
+            approved = await self._approver.request(call, spec.risk, preview)
             yield ApprovalResolved(request_id=call.id, approved=approved)
             if not approved:
                 self._metrics.incr("denied")

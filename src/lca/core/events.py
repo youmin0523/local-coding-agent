@@ -34,6 +34,7 @@ class ApprovalRequired(BaseModel):
     request_id: str
     call: ToolCall
     risk: RiskLevel
+    preview: str = ""  # human-readable diff/command preview of the pending change
 
 
 class ApprovalResolved(BaseModel):

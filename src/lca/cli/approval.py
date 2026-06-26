@@ -6,6 +6,7 @@ import sys
 
 from rich.console import Console
 from rich.prompt import Prompt
+from rich.syntax import Syntax
 
 from lca.core.messages import ToolCall
 from lca.tools.base import RiskLevel
@@ -18,7 +19,7 @@ class CliApprover:
         self._console = console
         self._allow_cache = session_allow_cache if session_allow_cache is not None else set()
 
-    async def request(self, call: ToolCall, risk: RiskLevel) -> bool:
+    async def request(self, call: ToolCall, risk: RiskLevel, preview: str = "") -> bool:
         if call.name in self._allow_cache:
             return True
         # Fail safe: with no interactive terminal (piped / background run) we cannot
@@ -30,9 +31,12 @@ class CliApprover:
             )
             return False
         self._console.print(
-            f"\n[yellow]Approval required[/] · [bold]{call.name}[/] "
-            f"([red]{risk.name}[/]) args={call.arguments}"
+            f"\n[yellow]Approval required[/] · [bold]{call.name}[/] ([red]{risk.name}[/])"
         )
+        if preview:
+            self._console.print(Syntax(preview, "diff", theme="ansi_dark", word_wrap=True))
+        else:
+            self._console.print(f"  args={call.arguments}")
         choice = Prompt.ask("  allow?", choices=["y", "n", "a"], default="n")
         if choice == "a":
             self._allow_cache.add(call.name)

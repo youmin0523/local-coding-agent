@@ -17,20 +17,21 @@ from lca.tools.base import RiskLevel
 
 @runtime_checkable
 class Approver(Protocol):
-    async def request(self, call: ToolCall, risk: RiskLevel) -> bool:
-        """Return True to allow the tool call, False to deny it."""
+    async def request(self, call: ToolCall, risk: RiskLevel, preview: str = "") -> bool:
+        """Return True to allow the tool call, False to deny it. ``preview`` is an
+        optional human-readable diff/command preview of the pending change."""
         ...
 
 
 class AutoApprover:
     """Approves everything. Used in AUTONOMOUS mode (under the policy ceiling) and tests."""
 
-    async def request(self, call: ToolCall, risk: RiskLevel) -> bool:
+    async def request(self, call: ToolCall, risk: RiskLevel, preview: str = "") -> bool:
         return True
 
 
 class DenyingApprover:
     """Denies everything. Useful for PLAN mode and safety tests."""
 
-    async def request(self, call: ToolCall, risk: RiskLevel) -> bool:
+    async def request(self, call: ToolCall, risk: RiskLevel, preview: str = "") -> bool:
         return False
