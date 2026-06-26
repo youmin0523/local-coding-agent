@@ -123,8 +123,8 @@
       const stop = document.getElementById("stop");
       let currentRunId = null;
       function setRunning(on) {
-        send.style.display = on ? "none" : "";
-        stop.style.display = on ? "" : "none";
+        send.style.display = on ? "none" : "inline-block";
+        stop.style.display = on ? "inline-block" : "none";  // explicit: #stop CSS default is none
         send.disabled = on;
         if (!on) currentRunId = null;
       }
@@ -334,19 +334,22 @@
         const old = btn.textContent; btn.textContent = label;
         setTimeout(() => { btn.textContent = old; }, 1500);
       }
+      function downloadMd(text) {
+        const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob); a.download = "lca-chat.md"; a.click();
+        URL.revokeObjectURL(a.href);
+      }
       copyMd.onclick = async () => {
         const text = toMarkdown();
         if (!text) { flash(copyMd, "대화 없음"); return; }
         try { await navigator.clipboard.writeText(text); flash(copyMd, "복사됨 ✓"); }
-        catch { flash(copyMd, "복사 실패"); }
+        catch { downloadMd(text); flash(copyMd, "파일로 저장됨"); }  // clipboard blocked → fall back
       };
       saveMd.onclick = () => {
         const text = toMarkdown();
         if (!text) { flash(saveMd, "대화 없음"); return; }
-        const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob); a.download = "lca-chat.md"; a.click();
-        URL.revokeObjectURL(a.href); flash(saveMd, "저장됨 ✓");
+        downloadMd(text); flash(saveMd, "저장됨 ✓");
       };
 
       loadConversations();
