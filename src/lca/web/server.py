@@ -43,7 +43,7 @@ from lca.web.approver import WebApprover
 
 log = get_logger("web.server")
 
-AgentBuilder = Callable[[WebApprover, str], Agent]
+AgentBuilder = Callable[[WebApprover, str, str], Agent]  # (approver, message, model_choice)
 _FRONTEND = Path(__file__).parent / "frontend"
 _NEW_TITLE = "새 채팅"
 
@@ -52,6 +52,7 @@ class RunRequest(BaseModel):
     message: str
     mode: str = "gated"
     conversation_id: str = ""
+    model: str = "auto"  # "auto" (route by difficulty) | "fast" (7B) | "brain" (30B)
 
 
 class ApprovalRequest(BaseModel):
@@ -164,14 +165,16 @@ class ConversationManager:
         return sorted(self._convos.values(), key=lambda c: c.created, reverse=True)[0]
 
     # ---- runs --------------------------------------------------------------
-    def start(self, message: str, mode: str, conversation_id: str = "") -> tuple[str, str, int]:
+    def start(
+        self, message: str, mode: str, conversation_id: str = "", model: str = "auto"
+    ) -> tuple[str, str, int]:
         conv = self._resolve(conversation_id)
         if conv.title == _NEW_TITLE and message.strip():
             conv.title = message.strip()[:40]
         self._counter += 1
         run_id = f"run{self._counter}"
         approver = WebApprover()
-        agent = self._build(approver, message)
+        agent = self._build(approver, message, model)
         try:
             conv.session.mode = AutonomyMode(mode)
         except ValueError:
@@ -223,8 +226,10 @@ def _routing_builder() -> AgentBuilder:
     settings = get_settings()
     router = Router(brain_available=settings.profile == "quality")
 
-    def build(approver: WebApprover, message: str) -> Agent:
-        plan = router.plan(message)
+    def build(approver: WebApprover, message: str, model: str = "auto") -> Agent:
+        if model in ("fast", "brain"):  # explicit user choice — skip routing
+            return build_agent(approver, settings=settings, model_logical=model, verify=False)
+        plan = router.plan(message)  # auto: route by difficulty
         return build_agent(
             approver,
             settings=settings,
@@ -260,7 +265,7 @@ def create_app(*, workspace: Path, agent_builder: AgentBuilder | None = None) ->
 
     @app.post("/api/runs")
     async def start_run(req: RunRequest) -> dict[str, str]:
-        run_id, cid, budget = manager.start(req.message, req.mode, req.conversation_id)
+        run_id, cid, budget = manager.start(req.message, req.mode, req.conversation_id, req.model)
         return {"run_id": run_id, "conversation_id": cid, "token_budget": str(budget)}
 
     @app.get("/api/runs/{run_id}/events")

@@ -268,6 +268,12 @@ def ask(
     ),
     copy: bool = typer.Option(False, "--copy", help="Copy the final answer to the clipboard."),
     md: str = typer.Option("", "--md", help="Also save the final answer to this .md file."),
+    model: str = typer.Option(
+        "auto", "--model", help="Model: auto (route) | fast (7B) | brain (30B)."
+    ),
+    notify_done: bool = typer.Option(
+        False, "--notify", help="Desktop notification when the turn completes."
+    ),
 ) -> None:
     """Run a single agent turn against the local engine."""
     settings = get_settings()
@@ -278,6 +284,9 @@ def ask(
     model_logical: Literal["brain", "fast"] = "brain" if settings.profile == "quality" else "fast"
     do_verify = verify
     samples = 1
+    if model in ("fast", "brain"):  # explicit model choice overrides routing
+        model_logical = model  # type: ignore[assignment]
+        route = False
     if route:
         brain = settings.profile == "quality"
         # Self-consistency probe (quality only): a couple of quick fast-model samples;
@@ -327,6 +336,10 @@ def ask(
         console.print(
             "[green]Copied to clipboard.[/]" if ok else "[yellow]Clipboard unavailable.[/]"
         )
+    if notify_done:
+        from lca.cli.notify import notify
+
+        notify("lca — 완료", answer or "처리가 완료되었습니다.")
 
 
 @app.command(name="mcp")
@@ -420,20 +433,31 @@ def chat(
     auto: bool = typer.Option(False, "--auto", help="Autonomous mode."),
     plan: bool = typer.Option(False, "--plan", help="Plan mode (propose actions, never execute)."),
     verify: bool = typer.Option(False, "--verify", help="Verify answers (deliver-or-abstain)."),
+    model: str = typer.Option("auto", "--model", help="Model: auto | fast (7B) | brain (30B)."),
+    notify_done: bool = typer.Option(False, "--notify", help="Desktop notification per turn."),
 ) -> None:
-    """Interactive multi-turn chat (one persistent session). Ctrl-D / 'exit' to quit."""
+    """Interactive multi-turn chat. 'exit'/Ctrl-D to quit · '/model fast|brain|auto' to switch."""
     settings = get_settings()
     configure_logging(settings.log.format, settings.log.level)
     workspace = Path(path).resolve()
     mode = AutonomyMode.AUTONOMOUS if auto else (AutonomyMode.PLAN if plan else AutonomyMode.GATED)
-    model_logical: Literal["brain", "fast"] = "brain" if settings.profile == "quality" else "fast"
-    agent = build_agent(
-        CliApprover(console), settings=settings, model_logical=model_logical, verify=verify
-    )
+
+    def _resolve_model(choice: str) -> Literal["brain", "fast"]:
+        if choice in ("fast", "brain"):
+            return choice  # type: ignore[return-value]
+        return "brain" if settings.profile == "quality" else "fast"
+
+    def _build(ml: Literal["brain", "fast"]) -> Agent:
+        return build_agent(CliApprover(console), settings=settings, model_logical=ml, verify=verify)
+
+    current = _resolve_model(model)
+    agent = _build(current)
     session = Session(
         workspace_root=workspace, mode=mode, token_budget=settings.llm.max_context_tokens
     )
-    console.print("[dim]lca chat — type 'exit' or Ctrl-D to quit.[/]")
+    console.print(
+        f"[dim]lca chat ({current}) — 'exit'/Ctrl-D to quit · '/model fast|brain|auto' to switch[/]"
+    )
 
     async def _turn(text: str) -> None:
         await _stream_turn(agent, session, text)
@@ -442,6 +466,10 @@ def chat(
         console.print(
             f"[dim]🧠 context ~{used / 1000:.1f}K/{session.token_budget // 1000}K ({pct}%)[/]"
         )
+        if notify_done:
+            from lca.cli.notify import notify
+
+            notify("lca — 응답 완료", "처리가 완료되었습니다.")
 
     while True:
         try:
@@ -451,6 +479,12 @@ def chat(
             break
         if user_input.lower() in {"exit", "quit", ":q"}:
             break
+        if user_input.startswith("/model"):
+            parts = user_input.split()
+            current = _resolve_model(parts[1] if len(parts) > 1 else "auto")
+            agent = _build(current)
+            console.print(f"[dim]model → {current}[/]")
+            continue
         if user_input:
             asyncio.run(_turn(user_input))
 

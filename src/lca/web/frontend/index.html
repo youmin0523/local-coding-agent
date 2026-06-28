@@ -94,6 +94,13 @@
         <span id="ctx" class="muted" title="대화가 차지하는 컨텍스트"></span>
         <button id="copyMd" class="hbtn" title="대화를 마크다운으로 클립보드에 복사">MD 복사</button>
         <button id="saveMd" class="hbtn" title="대화를 .md 파일로 저장">MD 저장</button>
+        <label class="muted">model
+          <select id="model">
+            <option value="auto">auto</option>
+            <option value="fast">fast · 7B</option>
+            <option value="brain">quality · 30B</option>
+          </select>
+        </label>
         <label class="muted">mode
           <select id="mode">
             <option value="gated">gated</option>
@@ -115,6 +122,7 @@
       const input = document.getElementById("input");
       const send = document.getElementById("send");
       const modeSel = document.getElementById("mode");
+      const modelSel = document.getElementById("model");
       const copyMd = document.getElementById("copyMd");
       const saveMd = document.getElementById("saveMd");
       const ctxEl = document.getElementById("ctx");
@@ -171,6 +179,12 @@
         }
       });
 
+      function notifyDone(text) {
+        // Desktop (Windows) notification when the answer is ready and the tab is in the background.
+        if (!("Notification" in window) || Notification.permission !== "granted" || !document.hidden) return;
+        try { new Notification("lca — 응답 완료", { body: (text || "").slice(0, 140) || "처리가 완료되었습니다." }); }
+        catch (e) { /* notifications unavailable */ }
+      }
       function updateCtx() {
         const chars = transcript.reduce((n, m) => n + m.text.length, 0);
         const used = Math.round(chars / 3) + 1200;  // mirrors the server's estimate
@@ -229,6 +243,9 @@
       async function sendMessage() {
         const text = input.value.trim();
         if (!text) return;
+        if ("Notification" in window && Notification.permission === "default") {
+          Notification.requestPermission();  // ask once, on a user gesture
+        }
         input.value = ""; setRunning(true);
         el("msg user", esc(text));
         transcript.push({ role: "user", text });
@@ -247,7 +264,7 @@
 
         const res = await fetch("/api/runs", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: text, mode: modeSel.value, conversation_id: currentConv || "" }),
+          body: JSON.stringify({ message: text, mode: modeSel.value, model: modelSel.value, conversation_id: currentConv || "" }),
         });
         const data = await res.json();
         const run_id = data.run_id;
@@ -313,6 +330,7 @@
             hideThinking();
             if (turnText.trim()) transcript.push({ role: "assistant", text: turnText });
             updateCtx();
+            notifyDone(turnText);
             ev.close(); setRunning(false); input.focus();
             refreshList();  // update sidebar titles without reloading the live log
           }

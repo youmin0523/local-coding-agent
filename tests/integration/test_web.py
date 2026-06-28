@@ -30,7 +30,7 @@ def _collect(client: TestClient, run_id: str) -> list[dict]:
 
 
 def test_run_streams_tokens_and_finishes(tmp_path: Path):
-    def builder(approver, message):
+    def builder(approver, message, model="auto"):
         return Agent(
             FakeProvider([text_chunks("Hello from lca.")]),
             build_default_registry(enable_web=False),
@@ -48,7 +48,7 @@ def test_run_streams_tokens_and_finishes(tmp_path: Path):
 
 
 def test_autonomous_run_executes_tool_via_web(tmp_path: Path):
-    def builder(approver, message):
+    def builder(approver, message, model="auto"):
         return Agent(
             FakeProvider(
                 [
@@ -71,28 +71,56 @@ def test_autonomous_run_executes_tool_via_web(tmp_path: Path):
     assert (tmp_path / "w.txt").read_text() == "data"
 
 
+def test_run_passes_model_choice_to_builder(tmp_path: Path):
+    seen: dict[str, str] = {}
+
+    def builder(approver, message, model="auto"):
+        seen["model"] = model
+        return _noop_agent(approver)
+
+    client = TestClient(create_app(workspace=tmp_path, agent_builder=builder))
+    run_id = client.post("/api/runs", json={"message": "hi", "model": "brain"}).json()["run_id"]
+    _collect(client, run_id)
+    assert seen["model"] == "brain"
+
+
 def test_approval_endpoint_unknown_id_returns_false(tmp_path: Path):
-    client = TestClient(create_app(workspace=tmp_path, agent_builder=lambda a, m: _noop_agent(a)))
+    client = TestClient(
+        create_app(workspace=tmp_path, agent_builder=lambda a, m, model="auto": _noop_agent(a))
+    )
     resp = client.post("/api/approvals/nope", json={"approved": True})
     assert resp.json() == {"resolved": False}
 
 
 def test_events_unknown_run_404(tmp_path: Path):
-    client = TestClient(create_app(workspace=tmp_path, agent_builder=lambda a, m: _noop_agent(a)))
+    client = TestClient(
+        create_app(workspace=tmp_path, agent_builder=lambda a, m, model="auto": _noop_agent(a))
+    )
     assert client.get("/api/runs/nope/events").status_code == 404
 
 
 def test_stop_unknown_run_returns_false(tmp_path: Path):
-    client = TestClient(create_app(workspace=tmp_path, agent_builder=lambda a, m: _noop_agent(a)))
+    client = TestClient(
+        create_app(workspace=tmp_path, agent_builder=lambda a, m, model="auto": _noop_agent(a))
+    )
     assert client.post("/api/runs/nope/stop").json() == {"stopped": False}
 
 
 def test_index_html_served_with_new_ui(tmp_path: Path):
-    client = TestClient(create_app(workspace=tmp_path, agent_builder=lambda a, m: _noop_agent(a)))
+    client = TestClient(
+        create_app(workspace=tmp_path, agent_builder=lambda a, m, model="auto": _noop_agent(a))
+    )
     r = client.get("/")
     assert r.status_code == 200
     # the rewritten UI: conversation sidebar, stop button, markdown export, context gauge
-    for marker in ('id="convList"', 'id="stop"', 'id="copyMd"', 'id="ctx"', "sendMessage"):
+    for marker in (
+        'id="convList"',
+        'id="stop"',
+        'id="copyMd"',
+        'id="ctx"',
+        'id="model"',
+        "notifyDone",
+    ):
         assert marker in r.text
 
 
@@ -107,7 +135,9 @@ def _noop_agent(approver) -> Agent:
 
 
 def test_conversation_crud(tmp_path: Path):
-    client = TestClient(create_app(workspace=tmp_path, agent_builder=lambda a, m: _noop_agent(a)))
+    client = TestClient(
+        create_app(workspace=tmp_path, agent_builder=lambda a, m, model="auto": _noop_agent(a))
+    )
     # a default conversation exists on startup
     assert len(client.get("/api/conversations").json()["conversations"]) >= 1
     cid = client.post("/api/conversations", json={"title": "work"}).json()["id"]
@@ -122,7 +152,7 @@ def test_conversation_crud(tmp_path: Path):
 
 
 def test_run_titles_and_records_conversation(tmp_path: Path):
-    def builder(approver, message):
+    def builder(approver, message, model="auto"):
         return Agent(
             FakeProvider([text_chunks("hello from lca")]),
             build_default_registry(enable_web=False),
