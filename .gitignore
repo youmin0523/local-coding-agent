@@ -32,6 +32,12 @@ node_modules/
 src/lca/web/frontend/dist/
 src/lca/web/frontend/node_modules/
 
+# Claude Code — personal/local config (never commit; may contain bypass perms)
+.claude/settings.local.json
+
+# lca local agent state (checkpoints, conversations, screenshots)
+.lca/
+
 # OS
 Thumbs.db
 .DS_Store
