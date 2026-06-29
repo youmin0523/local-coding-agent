@@ -17,22 +17,41 @@ with `no kernel image is available for execution on the device`. WSL2 works beca
 the Windows NVIDIA driver (CUDA 13.1) is forward-compatible with a cu128/cu129
 runtime *inside* WSL2.
 
+## ✅ Validated on this box (2026-06)
+
+The smoke test **passed**: `SMOKE OK — one training step ran. loss=1.0439` with
+**torch 2.11+cu128, bitsandbytes 0.49.2, unsloth 2026.6.9, Triton 3.6.0** on the RTX
+5070 in WSL2. Exact working (sudo-free for pip) recipe below.
+
 ## Steps
 
-1. **Open Ubuntu (WSL2)** — already installed (`wsl -d Ubuntu`).
-2. **Install uv + Python 3.13** in WSL2 and create a venv.
-3. **Install the pinned toolchain** (do NOT use cu130):
+1. **Open Ubuntu (WSL2)** — already installed (`wsl -d Ubuntu`). It ships Python 3.12
+   (fine; the plan's 3.13 is not required). GPU passthrough works out of the box
+   (`nvidia-smi -L` shows the RTX 5070).
+2. **Bootstrap pip without python3-venv** (Ubuntu's stock python3 has neither pip nor
+   ensurepip; venv needs `sudo apt install python3.12-venv`). Sudo-free path:
    ```bash
-   # Unsloth's installer pulls Blackwell-tuned kernels the plain PyPI wheel lacks.
-   curl -fsSL https://unsloth.ai/install.sh | sh
-   # Ensure torch is cu128/cu129 and bitsandbytes is 0.49.x:
-   pip install "bitsandbytes==0.49.*" "trl>=0.23" "datasets>=3" "transformers>=5"
+   curl -sSL https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
+   python3 /tmp/get-pip.py --user --break-system-packages
    ```
-4. **Smoke test (decisive gate):**
+3. **Install the toolchain** (do NOT use cu130):
    ```bash
-   python training/smoke_test.py
+   PIP="python3 -m pip install --user --break-system-packages"
+   $PIP torch --index-url https://download.pytorch.org/whl/cu128   # cu128, NOT cu130
+   $PIP bitsandbytes unsloth                                       # bnb 0.49.x, unsloth latest
    ```
-   - `SMOKE OK — one training step ran` → proceed.
+4. **Install build deps for Triton's JIT** (the two gotchas that bit us):
+   ```bash
+   sudo apt-get install -y build-essential python3-dev
+   ```
+   Triton JIT-compiles a CUDA-utils C extension at first kernel run; it needs **gcc**
+   (build-essential) and **Python.h** (python3-dev). `libcuda.so.1` is auto-found at
+   `/usr/lib/wsl/lib` — no extra flags needed.
+5. **Smoke test (decisive gate):**
+   ```bash
+   python3 training/smoke_test.py
+   ```
+   - `SMOKE OK — one training step ran` → proceed. *(This is what we got.)*
    - `no kernel image is available` → **stop**; keep using experience memory only.
 5. **Export the corpus** from verified experiences (run on Windows or WSL2):
    ```bash

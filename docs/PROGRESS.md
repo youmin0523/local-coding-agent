@@ -97,7 +97,16 @@ uv run lint-imports       # architecture contract: KEPT
 - **Live smoke test** against the real engine (start LM Studio server first). The `lms`
   CLI wasn't bootstrapped headlessly; easiest is to open LM Studio once (see runbook).
 - Optional extras not installed by default: `rag`, `search`, `mcp` (run `uv sync --extra <name>`).
-- QLoRA (M11) is gated behind `training/smoke_test.py` — only proceed if it prints SMOKE OK.
+- QLoRA (M11) is **VALIDATED on this Blackwell box (2026-06)**: `training/smoke_test.py`
+  printed **`SMOKE OK — one training step ran. loss=1.0439`** in WSL2 Ubuntu — Unsloth
+  2026.6.9 loaded + patched Qwen2.5-Coder-7B in 4-bit on the RTX 5070 and a real
+  forward+backward ran. The #1 documented risk (bitsandbytes NF4 on sm_120) is cleared:
+  **torch 2.11+cu128 / bitsandbytes 0.49.2** runs the NF4 kernel on Blackwell. So QLoRA
+  fine-tuning is viable, not just the weight-free memory. Sudo-free working recipe (no
+  python3-venv needed): bootstrap pip via get-pip.py (`--user --break-system-packages`),
+  `pip install torch --index-url .../cu128`, `pip install bitsandbytes unsloth`, then
+  `sudo apt install build-essential python3-dev` (Triton JITs a C extension needing gcc +
+  Python.h; libcuda is auto-found at /usr/lib/wsl/lib).
 - A richer React/shadcn web frontend could replace the (already functional) single-file UI.
 
 ## Measured results (2026-06, on the RTX 5070 Laptop)
