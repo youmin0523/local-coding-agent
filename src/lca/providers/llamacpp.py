@@ -45,17 +45,23 @@ class LlamaCppProvider(OpenAICompatProvider):
         base = await super().health()
         if not base.reachable:
             return base
-        # Discover the real context window the server was launched with.
+        # Discover the real context window the server was launched with. `/props` lives
+        # under /v1 on LM Studio but at the server root on raw llama-server — try both so
+        # discovery works on either engine.
+        root = self._base_url.removesuffix("/v1").rstrip("/")
+        candidates = [f"{self._base_url}/props", f"{root}/props"]
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(f"{self._base_url}/props", headers=self._headers())
-                if resp.status_code < 400:
-                    props = resp.json()
-                    n_ctx = props.get("default_generation_settings", {}).get("n_ctx") or props.get(
-                        "n_ctx"
-                    )
-                    if isinstance(n_ctx, int):
-                        base.context_window = n_ctx
+                for props_url in dict.fromkeys(candidates):  # de-duped, order-preserving
+                    resp = await client.get(props_url, headers=self._headers())
+                    if resp.status_code < 400:
+                        props = resp.json()
+                        n_ctx = props.get("default_generation_settings", {}).get(
+                            "n_ctx"
+                        ) or props.get("n_ctx")
+                        if isinstance(n_ctx, int):
+                            base.context_window = n_ctx
+                        break
         except httpx.HTTPError as exc:
             log.debug("llamacpp.props_unavailable", error=str(exc))
         return base

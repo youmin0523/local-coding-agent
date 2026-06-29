@@ -29,12 +29,13 @@ _CANDIDATE_URLS = (
 )
 
 
-def detect_base_url(configured: str, *, key: str = "", timeout: float = 1.0) -> str:
-    """Return a reachable engine URL so users needn't set LCA_LLM__BASE_URL.
+def detect_base_url(configured: str, *, key: str = "", timeout: float = 1.0) -> str | None:
+    """Return a reachable engine URL, or ``None`` if none answered.
 
     Tries the configured URL first (respecting an explicit setting), then the common
-    local ports. Falls back to ``configured`` if nothing answers. Best-effort, quick,
-    never raises.
+    local ports. A candidate counts only if it returns < 400 **and** the body looks like
+    an OpenAI ``/models`` response (a JSON ``data`` list) — so a stray service squatting
+    on the port (returning 200/401/404) isn't mistaken for the engine. Quick, never raises.
     """
     seen: set[str] = set()
     headers = {"Authorization": f"Bearer {key}"} if key else None
@@ -45,11 +46,11 @@ def detect_base_url(configured: str, *, key: str = "", timeout: float = 1.0) -> 
         seen.add(norm)
         try:
             resp = httpx.get(f"{norm}/models", headers=headers, timeout=timeout)
-            if resp.status_code < 500:
+            if resp.status_code < 400 and isinstance(resp.json().get("data"), list):
                 return url
         except Exception:
             continue
-    return configured
+    return None
 
 
 _DEFAULT_BASE_URL = "http://127.0.0.1:8080/v1"  # mirrors LLMSettings.base_url default
@@ -66,9 +67,11 @@ def build_provider(
     # once per process (LM Studio :1234 / llama-server :8080 / Ollama :11434).
     if url == _DEFAULT_BASE_URL:
         global _resolved_url
+        # Only memoize a *positive* detection — if nothing answered (engine not up yet),
+        # leave the cache empty so a later call re-detects once the engine starts.
         if _resolved_url is None:
             _resolved_url = detect_base_url(url, key=key)
-        url = _resolved_url
+        url = _resolved_url or _DEFAULT_BASE_URL
     timeout = settings.llm.request_timeout_s
     inner: LLMProvider = (
         LlamaCppProvider(url, key, timeout)
