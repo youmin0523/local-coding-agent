@@ -41,3 +41,6 @@ src/lca/web/frontend/node_modules/
 # OS
 Thumbs.db
 .DS_Store
+
+# Unsloth's auto-generated compiled trainer cache (created when QLoRA runs in repo root)
+unsloth_compiled_cache/
