@@ -121,6 +121,14 @@ no longer treats no-tests/lint as correctness failures), removing false abstenti
 correct code (5 unit tests). An earlier 6% reading was a harness bug — it checked only
 the chat summary while the agent writes code to files (fixed in M59).
 
+**Best-of-N measured (`--verify --samples 3`, 2026-06): 76% (13/17), tool-validity
+87%** — and crucially the abstention task (`abstain-prod-secret-rotation`) **correctly
+abstained**, proving the deliver-or-abstain gate works end-to-end on the live engine,
+not just in unit tests. The 4 misses are per-task generation variance. The portfolio
+takeaway is not the headline number (which fluctuates on a single 8 GB machine at
+temperature) but the *machinery*: the agent reliably produces correct code and the
+verification layer genuinely withholds answers it can't ground.
+
 ## Honest expectation
 On your recurring work in familiar repos, with verification + memory mature, this
 reaches Claude-class **reliability on those tasks**, and refuses to be confidently

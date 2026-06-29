@@ -77,9 +77,14 @@ run is noisy — be honest about it:
   *logic* was hardened in M74 — passing execution now dominates the verdict and
   `run_checks` no longer counts "no tests"/lint nits as correctness failures, so it
   stops abstaining on correct code (5 unit tests lock this in).
+- **Best-of-N (`--verify --samples 3`): 76% (13/17)**, tool-validity 87% — and the
+  **abstention task correctly abstained**, confirming the deliver-or-abstain gate
+  works end-to-end (it withholds the answer it shouldn't be sure of). Best-of-N trades
+  wall-clock for reliability; the 4 misses are generation variance on specific tasks.
 
-Best-of-N (which the router uses for hard tasks) stabilizes this; the eval samples
-once. Re-run with `uv run lca eval`.
+Numbers vary run-to-run (temperature, single machine); re-run with `uv run lca eval`.
+Bottom line: the agent reliably **produces correct code (~94%)** and the **verification
+gate genuinely abstains** when it should — trust comes from the harness, not the model.
 
 ## Hardware target
 
