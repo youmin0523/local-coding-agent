@@ -84,6 +84,34 @@ def test_run_passes_model_choice_to_builder(tmp_path: Path):
     assert seen["model"] == "brain"
 
 
+def test_routing_builder_honors_explicit_model_choice(monkeypatch):
+    """The default builder skips routing for an explicit fast/brain choice (M93 regression).
+
+    `fast`/`brain` must call build_agent with that exact logical model and no
+    best-of-N; `auto` must defer to the router (which sets model + samples).
+    """
+    import lca.web.server as server
+
+    calls: list[dict] = []
+
+    def spy(approver, *, settings, model_logical, verify=False, samples=1, **kw):
+        calls.append({"model_logical": model_logical, "verify": verify, "samples": samples})
+        return _noop_agent(approver)
+
+    monkeypatch.setattr(server, "build_agent", spy)
+    build = server._routing_builder()
+    approver = WebApprover()
+
+    build(approver, "hi", "fast")
+    build(approver, "hi", "brain")
+    build(approver, "refactor the whole module and add tests across files", "auto")
+
+    assert calls[0]["model_logical"] == "fast" and calls[0]["verify"] is False
+    assert calls[1]["model_logical"] == "brain" and calls[1]["verify"] is False
+    # auto: the router picks the logical model (never the raw "auto" string)
+    assert calls[2]["model_logical"] in ("fast", "brain")
+
+
 def test_approval_endpoint_unknown_id_returns_false(tmp_path: Path):
     client = TestClient(
         create_app(workspace=tmp_path, agent_builder=lambda a, m, model="auto": _noop_agent(a))
