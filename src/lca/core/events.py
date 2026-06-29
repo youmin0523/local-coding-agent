@@ -69,6 +69,31 @@ class Abstained(BaseModel):
     options: list[str] = Field(default_factory=list)
 
 
+class RunConfig(BaseModel):
+    """Emitted once at the very start of a turn: the routing outcome.
+
+    Makes the agent's difficulty routing visible — *which* model answered and how
+    much verification was spent (best-of-N samples), instead of it being an opaque
+    backend choice. ``model`` is the resolved engine model id.
+    """
+
+    type: Literal["run_config"] = "run_config"
+    model: str
+    verify: bool = False
+    samples: int = 1
+
+
+class FilesChanged(BaseModel):
+    """Emitted before the final answer listing files the turn created or edited.
+
+    A concise "what changed" summary so the user sees the turn's footprint without
+    scrolling the tool log — and knows exactly what ``undo`` would revert.
+    """
+
+    type: Literal["files_changed"] = "files_changed"
+    paths: list[str] = Field(default_factory=list)
+
+
 class ContextRecalled(BaseModel):
     """Emitted once at the start of a turn when prior context informs the answer.
 
@@ -110,6 +135,8 @@ AgentEvent = Annotated[
     | ToolFinished
     | VerificationResult
     | Abstained
+    | RunConfig
+    | FilesChanged
     | ContextRecalled
     | ReflectionNote
     | TurnFinished

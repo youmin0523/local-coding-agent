@@ -22,6 +22,30 @@ def _agent(provider: FakeProvider, approver) -> Agent:
     return Agent(provider, build_default_registry(), DefaultPolicy(), approver, model="fake")
 
 
+async def test_run_config_is_the_first_event(workspace: Path):
+    # routing outcome (model / verify / best-of-N) is surfaced before anything else
+    provider = FakeProvider([text_chunks("hi")])
+    agent = _agent(provider, AutoApprover())
+    events = await drain(agent.run_turn(Session(workspace_root=workspace), "hello"))
+    assert events[0].type == "run_config"
+    cfg = first_of(events, "run_config")
+    assert cfg.model == "fake" and cfg.verify is False and cfg.samples == 1
+
+
+async def test_files_changed_summarizes_written_paths(workspace: Path):
+    provider = FakeProvider(
+        [
+            tool_chunks("write_file", {"path": "out.py", "content": "x = 1\n"}),
+            text_chunks("wrote it"),
+        ]
+    )
+    agent = _agent(provider, AutoApprover())
+    events = await drain(agent.run_turn(Session(workspace_root=workspace), "make out.py"))
+    fc = first_of(events, "files_changed")
+    assert fc is not None and fc.paths == ["out.py"]
+    assert (workspace / "out.py").read_text() == "x = 1\n"
+
+
 async def test_empty_completion_retries_then_answers(workspace: Path):
     # First completion is empty (no text, no tool call); the retry succeeds.
     provider = FakeProvider([text_chunks(""), text_chunks("The answer is 42.")])

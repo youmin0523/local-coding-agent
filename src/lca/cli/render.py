@@ -10,7 +10,9 @@ from lca.core.events import (
     AgentEvent,
     ContextRecalled,
     ErrorEvent,
+    FilesChanged,
     ReflectionNote,
+    RunConfig,
     TokenDelta,
     ToolFinished,
     ToolStarted,
@@ -22,6 +24,12 @@ from lca.core.events import (
 def render_event(console: Console, event: AgentEvent) -> None:
     if isinstance(event, TokenDelta):
         console.print(event.text, end="", soft_wrap=True)
+    elif isinstance(event, RunConfig):
+        bon = f" · best-of-{event.samples}" if event.samples > 1 else ""
+        vfy = " · verify" if event.verify else ""
+        console.print(f"[dim]▶ {event.model}{vfy}{bon}[/]")
+    elif isinstance(event, FilesChanged):
+        console.print(f"\n[dim]✎ changed: {', '.join(event.paths)}[/]")
     elif isinstance(event, ToolStarted):
         console.print(f"\n[cyan]→ {event.name}[/]")
     elif isinstance(event, ToolFinished):

@@ -27,6 +27,8 @@ from lca.core.events import (
     ApprovalResolved,
     ContextRecalled,
     ErrorEvent,
+    FilesChanged,
+    RunConfig,
     TokenDelta,
     ToolFinished,
     ToolProposed,
@@ -68,13 +70,14 @@ class _Signals:
     means the answer is grounded enough to learn from without an LLM judge.
     """
 
-    __slots__ = ("checks_failed", "cited", "executed_ok", "truth_ok")
+    __slots__ = ("changed_files", "checks_failed", "cited", "executed_ok", "truth_ok")
 
     def __init__(self) -> None:
         self.truth_ok = False  # run_checks (tests/types/lint) passed
         self.checks_failed = False  # run_checks ran and FAILED
         self.executed_ok = False  # code/command ran successfully (run_python/run_shell)
         self.cited = False  # a web citation was produced
+        self.changed_files: list[str] = []  # files this turn created/edited (de-duped, ordered)
 
     @property
     def grounded(self) -> bool:
@@ -138,6 +141,9 @@ class Agent:
         return self._metrics.snapshot()
 
     async def run_turn(self, session: Session, user_input: str) -> AsyncIterator[AgentEvent]:
+        yield RunConfig(
+            model=self._model, verify=self._verifier is not None, samples=self._samples
+        )
         retrieved = await self._retrieve(user_input)
         mentions = self._mentioned_files(user_input, session.workspace_root)
         if mentions:
@@ -217,6 +223,8 @@ class Agent:
             messages.append(assistant)
 
             if not calls:
+                if signals.changed_files:
+                    yield FilesChanged(paths=list(signals.changed_files))
                 # base_messages = everything except the just-appended final answer,
                 # so best-of-N can resample alternative answers from the same context.
                 async for ev in self._finalize(user_input, text, signals, messages[:-1]):
@@ -227,6 +235,8 @@ class Agent:
                 async for ev in self._handle_call(call, session, sandbox, messages, signals):
                     yield ev
 
+        if signals.changed_files:
+            yield FilesChanged(paths=list(signals.changed_files))
         yield TurnFinished(stop_reason="budget", content="Stopped: tool-iteration limit reached.")
 
     async def _finalize(
@@ -412,6 +422,10 @@ class Agent:
                 signals.truth_ok = True  # run_checks passed: strongest signal
             if call.name in ("run_python", "run_shell"):
                 signals.executed_ok = True
+            if call.name in ("write_file", "edit_file"):
+                path = str(call.arguments.get("path", "")).strip()
+                if path and path not in signals.changed_files:
+                    signals.changed_files.append(path)
         if any(a.kind == "citation" for a in result.artifacts):
             signals.cited = True
         self._feed(messages, session, call, result.content or ("ok" if result.ok else "failed"))
