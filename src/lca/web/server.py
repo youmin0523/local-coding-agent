@@ -54,6 +54,7 @@ class RunRequest(BaseModel):
     mode: str = "gated"
     conversation_id: str = ""
     model: str = "auto"  # "auto" (route by difficulty) | "fast" (7B) | "brain" (30B)
+    tdd: bool = False  # test-first: write a failing test, then implement to green
 
 
 class ApprovalRequest(BaseModel):
@@ -167,7 +168,12 @@ class ConversationManager:
 
     # ---- runs --------------------------------------------------------------
     def start(
-        self, message: str, mode: str, conversation_id: str = "", model: str = "auto"
+        self,
+        message: str,
+        mode: str,
+        conversation_id: str = "",
+        model: str = "auto",
+        tdd: bool = False,
     ) -> tuple[str, str, int]:
         conv = self._resolve(conversation_id)
         if conv.title == _NEW_TITLE and message.strip():
@@ -176,6 +182,7 @@ class ConversationManager:
         run_id = f"run{self._counter}"
         approver = WebApprover()
         agent = self._build(approver, message, model)
+        conv.session.tdd = tdd
         try:
             conv.session.mode = AutonomyMode(mode)
         except ValueError:
@@ -269,7 +276,9 @@ def create_app(*, workspace: Path, agent_builder: AgentBuilder | None = None) ->
 
     @app.post("/api/runs")
     async def start_run(req: RunRequest) -> dict[str, str]:
-        run_id, cid, budget = manager.start(req.message, req.mode, req.conversation_id, req.model)
+        run_id, cid, budget = manager.start(
+            req.message, req.mode, req.conversation_id, req.model, req.tdd
+        )
         return {"run_id": run_id, "conversation_id": cid, "token_budget": str(budget)}
 
     @app.get("/api/runs/{run_id}/events")

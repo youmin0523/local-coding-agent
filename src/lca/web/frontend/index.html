@@ -111,6 +111,9 @@
             <option value="plan">plan</option>
           </select>
         </label>
+        <label class="muted" title="테스트 우선: 실패하는 테스트를 먼저 작성하고 통과시키도록 구현">
+          <input type="checkbox" id="tdd"> TDD
+        </label>
       </header>
       <div id="log"></div>
       <footer>
@@ -126,6 +129,7 @@
       const send = document.getElementById("send");
       const modeSel = document.getElementById("mode");
       const modelSel = document.getElementById("model");
+      const tddChk = document.getElementById("tdd");
       const copyMd = document.getElementById("copyMd");
       const saveMd = document.getElementById("saveMd");
       const undoBtn = document.getElementById("undo");
@@ -275,7 +279,7 @@
 
         const res = await fetch("/api/runs", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: text, mode: modeSel.value, model: modelSel.value, conversation_id: currentConv || "" }),
+          body: JSON.stringify({ message: text, mode: modeSel.value, model: modelSel.value, tdd: tddChk.checked, conversation_id: currentConv || "" }),
         });
         const data = await res.json();
         const run_id = data.run_id;

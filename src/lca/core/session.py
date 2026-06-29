@@ -23,6 +23,7 @@ class Session:
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
     history: list[Message] = field(default_factory=list)
     allow_cache: set[str] = field(default_factory=set)
+    tdd: bool = False  # test-first mode: inject the red-green workflow directive
 
     def add(self, message: Message) -> None:
         self.history.append(message)

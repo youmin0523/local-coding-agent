@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from lca.core.messages import Message
-from lca.core.prompts import SYSTEM_PROMPT, language_note, workspace_note
+from lca.core.prompts import SYSTEM_PROMPT, language_note, tdd_note, workspace_note
 from lca.core.session import Session
 
 # Rough chars-per-token for budgeting without a tokenizer dependency. Deliberately
@@ -70,6 +70,8 @@ class ContextBuilder:
         retrieved: RetrievedContext | None = None,
     ) -> list[Message]:
         system = SYSTEM_PROMPT + "\n\n" + workspace_note(str(session.workspace_root))
+        if session.tdd:
+            system += "\n\n" + tdd_note()
         if self._language:
             system += "\n\n" + language_note(self._language)
         if self._skills_note:

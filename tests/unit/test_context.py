@@ -47,3 +47,12 @@ def test_language_note_injected(tmp_path: Path):
     # default builder (no language) stays language-neutral
     neutral = ContextBuilder().build(session, "hi")[0].content or ""
     assert "LANGUAGE:" not in neutral
+
+
+def test_tdd_directive_injected_only_when_enabled(tmp_path: Path):
+    on = Session(workspace_root=tmp_path, token_budget=16384, tdd=True)
+    system = ContextBuilder().build(on, "add a parser")[0].content or ""
+    assert "TDD MODE" in system and "CONFIRM IT FAILS" in system
+    # default session (tdd off) carries no test-first directive
+    off = Session(workspace_root=tmp_path, token_budget=16384)
+    assert "TDD MODE" not in (ContextBuilder().build(off, "add a parser")[0].content or "")

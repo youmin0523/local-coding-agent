@@ -47,6 +47,20 @@ def workspace_note(root: str) -> str:
     return f"The current workspace is: {root}\nAll file paths are relative to it."
 
 
+def tdd_note() -> str:
+    """Test-first (red-green) workflow directive, injected when TDD mode is on."""
+    return (
+        "TDD MODE (test-first, non-negotiable this turn):\n"
+        "1. Before writing any implementation, write a small, behavior-focused test that "
+        "captures the requirement.\n"
+        "2. Run it with run_checks and CONFIRM IT FAILS (red) — a test that passes before "
+        "you've implemented anything is testing nothing; fix it.\n"
+        "3. Write the minimal implementation to satisfy the test.\n"
+        "4. Run run_checks again and iterate until the test PASSES (green).\n"
+        "Do not claim the task is done until you have shown a passing test run for it."
+    )
+
+
 def language_note(language: str) -> str:
     """Tell the model which natural language to reply in (code is left untouched)."""
     return (

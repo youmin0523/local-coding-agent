@@ -130,6 +130,14 @@ def test_undo_endpoint_reverts_last_edit(tmp_path: Path):
     assert client.post("/api/undo").json()["undone"] is None  # nothing left to undo
 
 
+async def test_start_applies_tdd_flag_to_session(tmp_path: Path):
+    from lca.web.server import ConversationManager
+
+    mgr = ConversationManager(tmp_path, lambda a, m, model="auto": _noop_agent(a))
+    _, cid, _ = mgr.start("hi", "gated", "", "auto", tdd=True)  # needs a running loop
+    assert mgr._resolve(cid).session.tdd is True  # test-first flag carried onto the session
+
+
 def test_approval_endpoint_unknown_id_returns_false(tmp_path: Path):
     client = TestClient(
         create_app(workspace=tmp_path, agent_builder=lambda a, m, model="auto": _noop_agent(a))

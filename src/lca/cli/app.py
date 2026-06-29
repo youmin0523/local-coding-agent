@@ -274,6 +274,9 @@ def ask(
     notify_done: bool = typer.Option(
         False, "--notify", help="Desktop notification when the turn completes."
     ),
+    tdd: bool = typer.Option(
+        False, "--tdd", help="Test-first: write a failing test, then implement to green."
+    ),
 ) -> None:
     """Run a single agent turn against the local engine."""
     settings = get_settings()
@@ -316,7 +319,7 @@ def ask(
         use_memory=not no_memory,
     )
     session = Session(
-        workspace_root=workspace, mode=mode, token_budget=settings.llm.max_context_tokens
+        workspace_root=workspace, mode=mode, token_budget=settings.llm.max_context_tokens, tdd=tdd
     )
 
     async def _run() -> str:
