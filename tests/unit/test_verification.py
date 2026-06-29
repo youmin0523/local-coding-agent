@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from lca.providers.fake import FakeProvider, text_chunks
+from lca.verification.adversary import LLMAdversary
 from lca.verification.consensus import select_by_consensus
 from lca.verification.gate import VerificationGate
 from lca.verification.judges import LLMJudge
@@ -17,6 +18,14 @@ class _FakeJudge:
 
     async def judge(self, task: str, candidate: str) -> JudgeVote:
         return JudgeVote(lens=self.lens, passed=self._passed, confidence=self._confidence)
+
+
+class _FakeAdversary:
+    def __init__(self, objection: str | None) -> None:
+        self._objection = objection
+
+    async def review(self, task: str, answer: str) -> str | None:
+        return self._objection
 
 
 async def test_gate_passes_with_majority():
@@ -72,6 +81,40 @@ async def test_llm_judge_handles_garbage_as_negative():
     judge = LLMJudge(provider, "fake", "correctness", "Is it correct?")
     vote = await judge.judge("task", "answer")
     assert vote.passed is False
+
+
+async def test_adversary_objection_blocks_a_judges_only_pass():
+    # judges would pass, but an unrefuted adversarial objection demotes it to uncertain
+    gate = VerificationGate(
+        [_FakeJudge("a", True), _FakeJudge("b", True)],
+        adversary=_FakeAdversary("off-by-one error when the list is empty"),
+    )
+    verdict = await gate.verify_answer("task", "answer")
+    assert verdict.verdict == "uncertain"
+    assert any("adversary" in s for s in verdict.signals)
+    assert any("off-by-one" in s for s in verdict.signals)  # objection leads the signals
+
+
+async def test_execution_pass_overrides_adversary_objection():
+    # passing tests beat a theoretical objection — execution is the oracle
+    gate = VerificationGate([_FakeJudge("a", True)], adversary=_FakeAdversary("could overflow"))
+    verdict = await gate.verify_answer("task", "answer", execution_passed=True)
+    assert verdict.verdict == "pass"
+
+
+async def test_sound_adversary_leaves_a_pass_intact():
+    gate = VerificationGate(
+        [_FakeJudge("a", True), _FakeJudge("b", True)], adversary=_FakeAdversary(None)
+    )
+    assert (await gate.verify_answer("task", "answer")).verdict == "pass"
+
+
+async def test_llm_adversary_none_on_sound_else_objection():
+    sound = LLMAdversary(FakeProvider([text_chunks("SOUND")]), "fake")
+    assert await sound.review("t", "a") is None
+    breaker = LLMAdversary(FakeProvider([text_chunks("It crashes when the input list is empty.")]), "fake")
+    objection = await breaker.review("t", "a")
+    assert objection is not None and "empty" in objection
 
 
 def test_select_by_consensus_picks_largest_cluster():
