@@ -29,6 +29,9 @@ WORKFLOW
   lint); otherwise run_python whose code imports or calls what you wrote directly.
   Do NOT create packages, move files, or add __init__.py to "fix" an import; just run
   the file or `import <name>` (the workspace is already importable).
+- NEVER present code as finished until you have actually executed it and seen it work
+  (run_checks or run_python). Untested code is not done. If you can, add a tiny test or
+  a call with a known expected result and run it to prove correctness before answering.
 - If a tool fails, read the error and address the real cause. Never repeat the same
   failing action — change your approach.
 

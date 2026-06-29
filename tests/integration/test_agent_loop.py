@@ -84,6 +84,41 @@ async def test_subagent_cannot_delegate_further(workspace: Path):
     assert "not available" in delegated[0].result.content
 
 
+async def test_unrun_code_is_nudged_to_execute_before_finishing(workspace: Path):
+    # the model writes a.py and tries to finish without running it → it gets nudged and
+    # actually executes the code before the answer is delivered
+    provider = FakeProvider(
+        [
+            tool_chunks("write_file", {"path": "a.py", "content": "def f():\n    return 1\n"}),
+            text_chunks("done"),  # tries to finish without running → nudge
+            tool_chunks("run_python", {"code": "import a; print(a.f())"}),  # complies
+            text_chunks("verified: f() returns 1"),
+        ]
+    )
+    agent = _agent(provider, AutoApprover())
+    session = Session(workspace_root=workspace, mode=AutonomyMode.AUTONOMOUS)
+    events = await drain(agent.run_turn(session, "write a.py with f()"))
+    names = [e.name for e in events_of(events, "tool_finished")]
+    assert "run_python" in names  # the nudge forced execution before delivery
+    assert first_of(events, "turn_finished").stop_reason == "complete"
+
+
+async def test_non_code_file_is_not_nudged(workspace: Path):
+    # writing a markdown doc and finishing must NOT trigger the run-code nudge (would
+    # exhaust the 2-turn script if it did)
+    provider = FakeProvider(
+        [
+            tool_chunks("write_file", {"path": "NOTES.md", "content": "# notes\n"}),
+            text_chunks("wrote the notes"),
+        ]
+    )
+    agent = _agent(provider, AutoApprover())
+    session = Session(workspace_root=workspace, mode=AutonomyMode.AUTONOMOUS)
+    events = await drain(agent.run_turn(session, "write NOTES.md"))
+    assert first_of(events, "turn_finished").stop_reason == "complete"
+    assert "run_python" not in [e.name for e in events_of(events, "tool_finished")]
+
+
 async def test_run_config_is_the_first_event(workspace: Path):
     # routing outcome (model / verify / best-of-N) is surfaced before anything else
     provider = FakeProvider([text_chunks("hi")])
@@ -95,17 +130,18 @@ async def test_run_config_is_the_first_event(workspace: Path):
 
 
 async def test_files_changed_summarizes_written_paths(workspace: Path):
+    # a non-code file so this stays focused on FilesChanged (no run-code nudge)
     provider = FakeProvider(
         [
-            tool_chunks("write_file", {"path": "out.py", "content": "x = 1\n"}),
+            tool_chunks("write_file", {"path": "notes.txt", "content": "hello\n"}),
             text_chunks("wrote it"),
         ]
     )
     agent = _agent(provider, AutoApprover())
-    events = await drain(agent.run_turn(Session(workspace_root=workspace), "make out.py"))
+    events = await drain(agent.run_turn(Session(workspace_root=workspace), "make notes.txt"))
     fc = first_of(events, "files_changed")
-    assert fc is not None and fc.paths == ["out.py"]
-    assert (workspace / "out.py").read_text() == "x = 1\n"
+    assert fc is not None and fc.paths == ["notes.txt"]
+    assert (workspace / "notes.txt").read_text() == "hello\n"
 
 
 async def test_empty_completion_retries_then_answers(workspace: Path):

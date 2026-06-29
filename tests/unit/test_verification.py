@@ -112,7 +112,9 @@ async def test_sound_adversary_leaves_a_pass_intact():
 async def test_llm_adversary_none_on_sound_else_objection():
     sound = LLMAdversary(FakeProvider([text_chunks("SOUND")]), "fake")
     assert await sound.review("t", "a") is None
-    breaker = LLMAdversary(FakeProvider([text_chunks("It crashes when the input list is empty.")]), "fake")
+    breaker = LLMAdversary(
+        FakeProvider([text_chunks("It crashes when the input list is empty.")]), "fake"
+    )
     objection = await breaker.review("t", "a")
     assert objection is not None and "empty" in objection
 

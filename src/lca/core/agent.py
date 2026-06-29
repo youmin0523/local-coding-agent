@@ -65,6 +65,10 @@ _MENTION_MAX_CHARS = 4000
 _MAX_SUBAGENT_DEPTH = 1
 # A sub-agent gets a smaller tool-iteration budget than the parent — focused, not open-ended.
 _SUBAGENT_MAX_ITER = 6
+# Before delivering, the agent must run code it wrote. Nudge once if it tries to finish
+# with unexecuted code; bounded so a model that can't run it still terminates.
+_MAX_CODE_NUDGES = 1
+_CODE_EXTS = (".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".rs", ".java", ".rb", ".c", ".cpp")
 
 
 class _Signals:
@@ -173,6 +177,7 @@ class Agent:
         signals = _Signals()
         self._metrics.incr("turns")
         empty_retries = 0
+        code_nudges = 0
         temperature = self._temperature
 
         for _ in range(self._max_iter):
@@ -228,6 +233,20 @@ class Agent:
             messages.append(assistant)
 
             if not calls:
+                # Gate delivery on execution: if the model wrote code but never ran it,
+                # nudge it to actually run/simulate the code before finishing (once).
+                if self._has_unrun_code(signals) and code_nudges < _MAX_CODE_NUDGES:
+                    code_nudges += 1
+                    self._metrics.incr("code_exec_nudges")
+                    messages.append(
+                        Message.user(
+                            "You wrote or edited code but have not run it. Before finishing, "
+                            "actually execute it — run_checks, or run_python that imports/calls "
+                            "what you wrote with a known expected result — and confirm it works. "
+                            "If it is already verified, run it once more to show the output."
+                        )
+                    )
+                    continue
                 if signals.changed_files:
                     yield FilesChanged(paths=list(signals.changed_files))
                 # base_messages = everything except the just-appended final answer,
@@ -527,6 +546,13 @@ class Agent:
             if isinstance(ev, TurnFinished):
                 stop_reason, answer = ev.stop_reason, ev.content
         return stop_reason, answer
+
+    @staticmethod
+    def _has_unrun_code(signals: _Signals) -> bool:
+        """True if the turn wrote a code file but never executed anything to verify it."""
+        if signals.truth_ok or signals.executed_ok:
+            return False
+        return any(p.strip().endswith(_CODE_EXTS) for p in signals.changed_files)
 
     @staticmethod
     def _feed(messages: list[Message], session: Session, call: ToolCall, content: str) -> None:
