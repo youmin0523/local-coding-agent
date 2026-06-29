@@ -291,8 +291,16 @@ class Agent:
                 verdict = await self._verifier.verify_answer(
                     task, cand, execution_passed=execution_passed
                 )
-            except Exception as exc:  # verification must never crash a turn
+            except Exception as exc:  # verifier infra failed — deliver, but never as "verified"
                 log.warning("agent.verify_failed", error=str(exc))
+                grounded = execution_passed is True
+                yield VerificationResult(
+                    verdict="pass" if grounded else "uncertain",
+                    confidence=0.6 if grounded else 0.0,
+                    detail="grounded by execution (judge unavailable)"
+                    if grounded
+                    else "unverified — the verifier errored",
+                )
                 yield TurnFinished(stop_reason="complete", content=candidates[0])
                 return
             if verdict is None:
@@ -437,12 +445,14 @@ class Agent:
             signals.cited = True
         self._feed(messages, session, call, result.content or ("ok" if result.ok else "failed"))
 
-    async def _run_subagent(self, task: str, parent: Session) -> str:
-        """Run a focused subtask in a fresh, depth-bounded sub-agent; return its answer.
+    async def _run_subagent(self, task: str, parent: Session) -> tuple[str, str]:
+        """Run a focused subtask in a fresh, depth-bounded sub-agent.
 
-        Shares this agent's provider, tools, and workspace, but gets a clean session and
-        a smaller iteration budget. The spawn was already gated (delegate = WRITE risk), so
-        the sub-agent runs autonomously — its edits are checkpointed and reversible.
+        Returns ``(stop_reason, content)`` so the caller can tell a clean completion from
+        an abstain / budget-stop / empty turn instead of folding failure text back as if it
+        were the answer. Shares this agent's provider, tools, and workspace, but gets a clean
+        session and a smaller iteration budget. The spawn was already gated (delegate = WRITE
+        risk), so the sub-agent runs autonomously — its edits are checkpointed and reversible.
         """
         child = Agent(
             self._provider,
@@ -462,11 +472,11 @@ class Agent:
             mode=AutonomyMode.AUTONOMOUS,
             token_budget=parent.token_budget,
         )
-        answer = ""
+        stop_reason, answer = "complete", ""
         async for ev in child.run_turn(child_session, task):
             if isinstance(ev, TurnFinished):
-                answer = ev.content
-        return answer
+                stop_reason, answer = ev.stop_reason, ev.content
+        return stop_reason, answer
 
     @staticmethod
     def _feed(messages: list[Message], session: Session, call: ToolCall, content: str) -> None:

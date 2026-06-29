@@ -52,9 +52,14 @@ class DelegateTool:
                 "delegation is not available here (already inside a sub-agent)."
             )
         try:
-            answer = await runner(task, ctx.session)
+            stop_reason, answer = await runner(task, ctx.session)
         except Exception as exc:  # a sub-agent must never crash the parent loop
             return ToolResult.error(f"sub-agent failed: {type(exc).__name__}: {exc}")
+        if stop_reason != "complete":  # abstain / budget / empty — not a real result
+            return ToolResult.error(
+                f"sub-agent did not finish the subtask (stopped: {stop_reason}). "
+                f"Partial output: {answer or '(none)'}. Try a smaller, clearer subtask."
+            )
         return ToolResult.ok_text(
             f"[sub-agent result]\n{answer}" if answer else "[sub-agent produced no answer]"
         )

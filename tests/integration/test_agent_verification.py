@@ -36,6 +36,23 @@ def _agent(verifier) -> Agent:
     )
 
 
+class _CrashingVerifier:
+    async def verify_answer(
+        self, task: str, answer: str, *, execution_passed: bool | None = None
+    ) -> Verdict:
+        raise RuntimeError("judge unavailable")
+
+
+async def test_verifier_crash_delivers_but_flags_unverified(workspace: Path):
+    # a verifier infra failure must NOT be reported as a confident "pass" — the answer
+    # is still delivered (not lost), but flagged uncertain/unverified
+    agent = _agent(_CrashingVerifier())
+    events = await drain(agent.run_turn(Session(workspace_root=workspace), "q"))
+    v = first_of(events, "verification")
+    assert v is not None and v.verdict == "uncertain" and v.confidence == 0.0
+    assert "42" in first_of(events, "turn_finished").content
+
+
 async def test_pass_verdict_delivers(workspace: Path):
     agent = _agent(_StubVerifier(Verdict(verdict="pass", confidence=0.9)))
     events = await drain(agent.run_turn(Session(workspace_root=workspace), "what is 6*7?"))

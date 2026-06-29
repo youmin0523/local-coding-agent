@@ -42,6 +42,27 @@ async def test_delegate_runs_subagent_and_folds_result_back(workspace: Path):
     assert first_of(events, "turn_finished").stop_reason == "complete"
 
 
+async def test_delegate_reports_failure_when_subagent_does_not_complete(workspace: Path):
+    # child returns only empty completions → stop_reason "empty"; delegate must NOT
+    # report that as a successful answer
+    provider = FakeProvider(
+        [
+            tool_chunks("delegate", {"task": "do the thing"}),  # parent
+            text_chunks(""),  # child turn 1 (empty)
+            text_chunks(""),  # child turn 2 (empty, retry)
+            text_chunks(""),  # child turn 3 (empty, gives up → stop_reason "empty")
+            text_chunks("parent carries on"),  # parent final
+        ]
+    )
+    agent = _agent(provider, AutoApprover())
+    session = Session(workspace_root=workspace, mode=AutonomyMode.AUTONOMOUS)
+    events = await drain(agent.run_turn(session, "delegate something that won't finish"))
+
+    delegated = [e for e in events_of(events, "tool_finished") if e.name == "delegate"]
+    assert delegated and delegated[0].result.ok is False
+    assert "stopped: empty" in delegated[0].result.content
+
+
 async def test_subagent_cannot_delegate_further(workspace: Path):
     # an agent already at depth 1 must not be able to spawn another sub-agent
     provider = FakeProvider(
