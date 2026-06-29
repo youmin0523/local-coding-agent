@@ -284,8 +284,11 @@ def ask(
     model_logical: Literal["brain", "fast"] = "brain" if settings.profile == "quality" else "fast"
     do_verify = verify
     samples = 1
-    if model in ("fast", "brain"):  # explicit model choice overrides routing
-        model_logical = model  # type: ignore[assignment]
+    if model == "fast":  # explicit model choice overrides routing
+        model_logical = "fast"
+        route = False
+    elif model == "brain":
+        model_logical = "brain"
         route = False
     if route:
         brain = settings.profile == "quality"
