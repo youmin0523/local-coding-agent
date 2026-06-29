@@ -195,6 +195,9 @@ class ConversationManager:
             try:
                 async for event in agent.run_turn(conv.session, message):
                     await queue.put(event.model_dump())
+            except asyncio.CancelledError:  # stop() / client disconnect → tell the UI, then unwind
+                await queue.put({"type": "turn_finished", "stop_reason": "stopped", "content": ""})
+                raise
             except Exception as exc:  # report, never hang the stream
                 log.exception("web.run_failed")
                 await queue.put({"type": "error", "message": str(exc), "recoverable": False})
@@ -208,6 +211,10 @@ class ConversationManager:
     def exists(self, run_id: str) -> bool:
         return run_id in self._runs
 
+    def active_runs(self) -> int:
+        """How many runs are still executing (used to block undo mid-edit)."""
+        return sum(1 for r in self._runs.values() if r.task and not r.task.done())
+
     def stop(self, run_id: str) -> bool:
         """Cancel an in-flight run; the drive task's finally still persists + ends the stream."""
         run = self._runs.get(run_id)
@@ -217,13 +224,22 @@ class ConversationManager:
         return False
 
     async def stream(self, run_id: str) -> AsyncIterator[dict[str, object]]:
-        run = self._runs[run_id]
-        while True:
-            event = await run.queue.get()
-            if event is None:
-                break
-            yield event
-        self._runs.pop(run_id, None)
+        run = self._runs.get(run_id)
+        if run is None:
+            return
+        try:
+            while True:
+                event = await run.queue.get()
+                if event is None:
+                    break
+                yield event
+        finally:
+            # Always reclaim the run — even if the client disconnects mid-stream (the
+            # generator is cancelled here) — and cancel an orphaned drive task so it
+            # can't keep running with no consumer.
+            if run.task and not run.task.done():
+                run.task.cancel()
+            self._runs.pop(run_id, None)
 
     def resolve(self, request_id: str, approved: bool) -> bool:
         return any(run.approver.resolve(request_id, approved) for run in self._runs.values())
@@ -307,6 +323,8 @@ def create_app(*, workspace: Path, agent_builder: AgentBuilder | None = None) ->
     @app.post("/api/undo")
     async def undo() -> dict[str, object]:
         cp = Checkpointer(workspace)
+        if manager.active_runs():  # a turn may be appending to the journal right now
+            return {"undone": None, "pending": cp.pending(), "busy": True}
         desc = cp.undo_last()  # restore the most recent edit; None if nothing to undo
         return {"undone": desc, "pending": cp.pending()}
 

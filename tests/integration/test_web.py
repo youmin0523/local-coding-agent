@@ -112,6 +112,57 @@ def test_routing_builder_honors_explicit_model_choice(monkeypatch):
     assert calls[2]["model_logical"] in ("fast", "brain")
 
 
+class _BlockingAgent:
+    """An agent whose turn blocks on a gate — to hold a run 'active' during a test."""
+
+    def __init__(self, gate) -> None:
+        self._gate = gate
+
+    async def run_turn(self, session, message):
+        await self._gate.wait()
+        return
+        yield  # never reached; makes this an async generator
+
+
+async def test_active_runs_and_undo_blocked_mid_run(tmp_path: Path):
+    import asyncio
+
+    from lca.tools.checkpoint import Checkpointer
+    from lca.web.server import ConversationManager
+
+    gate = asyncio.Event()
+    mgr = ConversationManager(tmp_path, lambda a, m, model="auto": _BlockingAgent(gate))
+    f = tmp_path / "a.txt"
+    f.write_text("v0", "utf-8")
+    Checkpointer(tmp_path).record(f)
+    f.write_text("v1", "utf-8")
+
+    run_id, _, _ = mgr.start("go", "gated")
+    await asyncio.sleep(0)  # let drive() start and block on the gate
+    assert mgr.active_runs() == 1  # a run is in flight → undo must refuse
+
+    gate.set()
+    [_ async for _ in mgr.stream(run_id)]  # drain to completion
+    assert mgr.active_runs() == 0  # stream finished and reclaimed the run (no leak)
+
+
+async def test_stop_emits_a_stopped_terminal_event(tmp_path: Path):
+    import asyncio
+
+    from lca.web.server import ConversationManager
+
+    gate = asyncio.Event()
+    mgr = ConversationManager(tmp_path, lambda a, m, model="auto": _BlockingAgent(gate))
+    run_id, _, _ = mgr.start("go", "gated")
+    await asyncio.sleep(0)
+    assert mgr.stop(run_id) is True
+
+    events = [e async for e in mgr.stream(run_id)]
+    assert any(
+        e.get("type") == "turn_finished" and e.get("stop_reason") == "stopped" for e in events
+    )
+
+
 def test_undo_endpoint_reverts_last_edit(tmp_path: Path):
     from lca.tools.checkpoint import Checkpointer
 

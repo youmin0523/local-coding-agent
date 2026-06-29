@@ -399,8 +399,9 @@
       undoBtn.onclick = async () => {
         undoBtn.disabled = true;
         try {
-          const { undone, pending } = await (await fetch("/api/undo", { method: "POST" })).json();
-          el("msg assistant", `<span class="badge recall">↶ undo</span> <span class="muted">${esc(undone || "되돌릴 변경 없음")}</span>`);
+          const { undone, pending, busy } = await (await fetch("/api/undo", { method: "POST" })).json();
+          const msg = busy ? "실행 중에는 되돌릴 수 없습니다" : (undone || "되돌릴 변경 없음");
+          el("msg assistant", `<span class="badge recall">↶ undo</span> <span class="muted">${esc(msg)}</span>`);
           undoBtn.textContent = pending ? `↶ 되돌리기 (${pending})` : "↶ 되돌리기";
           undoBtn.disabled = !pending;
         } catch (e) { undoBtn.disabled = false; }
