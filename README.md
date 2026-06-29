@@ -52,9 +52,12 @@ the 7B model.
   document/slide/spreadsheet generation.
 - **MCP** client (filesystem/git/fetch) — native + MCP tools in one registry.
 - **Web chat UI** — multiple conversations (sidebar, new chat, persisted per purpose),
-  live "thinking" indicator, stop button, code-copy, a context-usage gauge, and
-  one-click Markdown export of a conversation. Auto-detects the engine port and
-  opens the browser itself; launch by double-clicking `start-web.bat`.
+  live "thinking" indicator, stop button, code-copy, a context-usage gauge, one-click
+  Markdown export, and an **undo button** that reverts the agent's last file edit. Auto-detects
+  the engine port and opens the browser itself; launch by double-clicking `start-web.bat`.
+- **Shows its work** — surfaces *why* an answer is trustworthy, not just the answer: a
+  **recall badge** when it reuses a verified past solution (self-improvement made visible),
+  the **verification verdict + confidence**, and abstention with safer options when unsure.
 - **~150-card → 184-card knowledge base** spanning the whole developer stack:
   backend/frontend frameworks, databases, infra (k8s/Terraform/Kafka/OTel), and
   cross-cutting patterns (OAuth2/JWT/REST/caching/idempotency/testing).
