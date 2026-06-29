@@ -8,6 +8,7 @@ from rich.syntax import Syntax
 from lca.core.events import (
     Abstained,
     AgentEvent,
+    ContextRecalled,
     ErrorEvent,
     ReflectionNote,
     TokenDelta,
@@ -38,6 +39,8 @@ def render_event(console: Console, event: AgentEvent) -> None:
         console.print(f"\n[yellow]Not confident:[/] {event.reason}")
         for opt in event.options:
             console.print(f"  · {opt}")
+    elif isinstance(event, ContextRecalled):
+        console.print(f"[dim]↺ recalled: {event.detail}[/]")
     elif isinstance(event, ReflectionNote):
         console.print(f"\n[dim]reflection: {event.text}[/]")
     elif isinstance(event, ErrorEvent):

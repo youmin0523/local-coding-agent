@@ -69,6 +69,21 @@ class Abstained(BaseModel):
     options: list[str] = Field(default_factory=list)
 
 
+class ContextRecalled(BaseModel):
+    """Emitted once at the start of a turn when prior context informs the answer.
+
+    Surfaces two otherwise-invisible differentiators: ``experiences`` = verified
+    past solutions reused from the experience memory (self-improvement), and
+    ``snippets`` = repository chunks pulled in by RAG (grounding). Lets the UI
+    show *why* an answer is trustworthy, not just the answer.
+    """
+
+    type: Literal["context_recalled"] = "context_recalled"
+    experiences: int = 0
+    snippets: int = 0
+    detail: str = ""
+
+
 class ReflectionNote(BaseModel):
     type: Literal["reflection"] = "reflection"
     text: str
@@ -95,6 +110,7 @@ AgentEvent = Annotated[
     | ToolFinished
     | VerificationResult
     | Abstained
+    | ContextRecalled
     | ReflectionNote
     | TurnFinished
     | ErrorEvent,

@@ -25,6 +25,7 @@ from lca.core.events import (
     AgentEvent,
     ApprovalRequired,
     ApprovalResolved,
+    ContextRecalled,
     ErrorEvent,
     TokenDelta,
     ToolFinished,
@@ -144,6 +145,14 @@ class Agent:
             retrieved.code_snippets = mentions + retrieved.code_snippets
         messages = self._builder.build(session, user_input, retrieved)
         session.add(Message.user(user_input))
+        if retrieved and (retrieved.experiences or retrieved.code_snippets):
+            n_exp, n_snip = len(retrieved.experiences), len(retrieved.code_snippets)
+            bits = []
+            if n_exp:
+                bits.append(f"{n_exp} verified solution(s) reused")
+            if n_snip:
+                bits.append(f"{n_snip} code snippet(s)")
+            yield ContextRecalled(experiences=n_exp, snippets=n_snip, detail=", ".join(bits))
         schemas = self._tool_schemas()
         sandbox = SandboxRunner(
             session.workspace_root,

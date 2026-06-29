@@ -51,6 +51,40 @@ async def test_recall_injected_into_context(workspace: Path):
     assert "tax" in system_prompt
 
 
+async def test_recall_emits_context_recalled_event(workspace: Path):
+    # a reused verified solution is surfaced to the UI as a first-class event,
+    # not just silently stuffed into the prompt — this makes self-improvement visible
+    mem = ExperienceMemory(MemoryStore(":memory:"), HashingEmbedder())
+    await mem.remember("fix the tax bug", "I divided by the rate; verified by tests", verified=True)
+
+    provider = FakeProvider([text_chunks("done")])
+    agent = Agent(
+        provider,
+        build_default_registry(),
+        DefaultPolicy(),
+        AutoApprover(),
+        model="fake",
+        memory=mem,
+    )
+    events = await drain(
+        agent.run_turn(Session(workspace_root=workspace), "the tax calculation is wrong")
+    )
+    recalled = first_of(events, "context_recalled")
+    assert recalled is not None
+    assert recalled.experiences >= 1
+    assert "verified solution" in recalled.detail
+
+
+async def test_no_recall_event_when_nothing_retrieved(workspace: Path):
+    # no memory, no RAG, no @-mentions → the turn emits no context_recalled noise
+    provider = FakeProvider([text_chunks("hi")])
+    agent = Agent(
+        provider, build_default_registry(enable_web=False), DefaultPolicy(), AutoApprover(), model="fake"
+    )
+    events = await drain(agent.run_turn(Session(workspace_root=workspace), "hello"))
+    assert first_of(events, "context_recalled") is None
+
+
 async def test_pass_verdict_is_remembered(workspace: Path):
     store = MemoryStore(":memory:")
     mem = ExperienceMemory(store, HashingEmbedder())
