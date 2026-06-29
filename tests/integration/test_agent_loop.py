@@ -22,6 +22,47 @@ def _agent(provider: FakeProvider, approver) -> Agent:
     return Agent(provider, build_default_registry(), DefaultPolicy(), approver, model="fake")
 
 
+async def test_delegate_runs_subagent_and_folds_result_back(workspace: Path):
+    # parent calls delegate; the sub-agent (turn 2) answers; its result is fed back
+    provider = FakeProvider(
+        [
+            tool_chunks("delegate", {"task": "compute 2+2"}),
+            text_chunks("the answer is 4"),
+            text_chunks("the sub-agent reported the result"),
+        ]
+    )
+    agent = _agent(provider, AutoApprover())
+    session = Session(workspace_root=workspace, mode=AutonomyMode.AUTONOMOUS)
+    events = await drain(agent.run_turn(session, "delegate a calculation"))
+
+    finished = events_of(events, "tool_finished")
+    delegated = [e for e in finished if e.name == "delegate"]
+    assert delegated and delegated[0].result.ok
+    assert "the answer is 4" in delegated[0].result.content
+    assert first_of(events, "turn_finished").stop_reason == "complete"
+
+
+async def test_subagent_cannot_delegate_further(workspace: Path):
+    # an agent already at depth 1 must not be able to spawn another sub-agent
+    provider = FakeProvider(
+        [tool_chunks("delegate", {"task": "nested"}), text_chunks("carried on")]
+    )
+    agent = Agent(
+        provider,
+        build_default_registry(),
+        DefaultPolicy(),
+        AutoApprover(),
+        model="fake",
+        subagent_depth=1,
+    )
+    session = Session(workspace_root=workspace, mode=AutonomyMode.AUTONOMOUS)
+    events = await drain(agent.run_turn(session, "try to delegate from inside"))
+
+    delegated = [e for e in events_of(events, "tool_finished") if e.name == "delegate"]
+    assert delegated and delegated[0].result.ok is False
+    assert "not available" in delegated[0].result.content
+
+
 async def test_run_config_is_the_first_event(workspace: Path):
     # routing outcome (model / verify / best-of-N) is surfaced before anything else
     provider = FakeProvider([text_chunks("hi")])

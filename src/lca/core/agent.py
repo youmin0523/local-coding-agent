@@ -40,7 +40,8 @@ from lca.core.messages import Message, ToolCall
 from lca.core.session import Session
 from lca.observability.logging import get_logger
 from lca.observability.metrics import Metrics, MetricsSnapshot
-from lca.permissions.approver import Approver
+from lca.permissions.approver import Approver, AutoApprover
+from lca.permissions.modes import AutonomyMode
 from lca.permissions.policy import Decision, PermissionPolicy
 from lca.permissions.sandbox import SandboxRunner
 from lca.providers.base import ChatRequest, LLMProvider, ToolSchema
@@ -60,6 +61,10 @@ _MAX_EMPTY_RETRIES = 2
 # `@path/to/file` mentions in the user's message → inject that file as explicit context.
 _MENTION_RE = re.compile(r"@([\w./\\-]+)")
 _MENTION_MAX_CHARS = 4000
+# Delegation is depth-1 only: a sub-agent cannot spawn its own sub-agents (no recursion).
+_MAX_SUBAGENT_DEPTH = 1
+# A sub-agent gets a smaller tool-iteration budget than the parent — focused, not open-ended.
+_SUBAGENT_MAX_ITER = 6
 
 
 class _Signals:
@@ -113,6 +118,7 @@ class Agent:
         no_network: bool = False,
         skills_note: str = "",
         response_language: str = "",
+        subagent_depth: int = 0,
     ) -> None:
         self._provider = provider
         self._registry = registry
@@ -128,6 +134,7 @@ class Agent:
         self._max_tokens = max_tokens
         self._sandbox_timeout = sandbox_timeout_s
         self._no_network = no_network
+        self._subagent_depth = subagent_depth
         self._builder = ContextBuilder(skills_note=skills_note, language=response_language)
         self._metrics = Metrics()
 
@@ -141,9 +148,7 @@ class Agent:
         return self._metrics.snapshot()
 
     async def run_turn(self, session: Session, user_input: str) -> AsyncIterator[AgentEvent]:
-        yield RunConfig(
-            model=self._model, verify=self._verifier is not None, samples=self._samples
-        )
+        yield RunConfig(model=self._model, verify=self._verifier is not None, samples=self._samples)
         retrieved = await self._retrieve(user_input)
         mentions = self._mentioned_files(user_input, session.workspace_root)
         if mentions:
@@ -406,6 +411,8 @@ class Agent:
             session=session,
             sandbox=sandbox,
         )
+        if self._subagent_depth < _MAX_SUBAGENT_DEPTH:  # top-level only → no recursion
+            ctx.extra["subagent"] = self._run_subagent
         try:
             result = await tool.run(call.arguments, ctx)
         except Exception as exc:  # tools must never crash the loop
@@ -429,6 +436,37 @@ class Agent:
         if any(a.kind == "citation" for a in result.artifacts):
             signals.cited = True
         self._feed(messages, session, call, result.content or ("ok" if result.ok else "failed"))
+
+    async def _run_subagent(self, task: str, parent: Session) -> str:
+        """Run a focused subtask in a fresh, depth-bounded sub-agent; return its answer.
+
+        Shares this agent's provider, tools, and workspace, but gets a clean session and
+        a smaller iteration budget. The spawn was already gated (delegate = WRITE risk), so
+        the sub-agent runs autonomously — its edits are checkpointed and reversible.
+        """
+        child = Agent(
+            self._provider,
+            self._registry,
+            self._policy,
+            AutoApprover(),
+            model=self._model,
+            max_tool_iterations=min(self._max_iter, _SUBAGENT_MAX_ITER),
+            temperature=self._temperature,
+            max_tokens=self._max_tokens,
+            sandbox_timeout_s=self._sandbox_timeout,
+            no_network=self._no_network,
+            subagent_depth=self._subagent_depth + 1,
+        )
+        child_session = Session(
+            workspace_root=parent.workspace_root,
+            mode=AutonomyMode.AUTONOMOUS,
+            token_budget=parent.token_budget,
+        )
+        answer = ""
+        async for ev in child.run_turn(child_session, task):
+            if isinstance(ev, TurnFinished):
+                answer = ev.content
+        return answer
 
     @staticmethod
     def _feed(messages: list[Message], session: Session, call: ToolCall, content: str) -> None:

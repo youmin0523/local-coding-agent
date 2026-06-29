@@ -79,7 +79,11 @@ async def test_no_recall_event_when_nothing_retrieved(workspace: Path):
     # no memory, no RAG, no @-mentions → the turn emits no context_recalled noise
     provider = FakeProvider([text_chunks("hi")])
     agent = Agent(
-        provider, build_default_registry(enable_web=False), DefaultPolicy(), AutoApprover(), model="fake"
+        provider,
+        build_default_registry(enable_web=False),
+        DefaultPolicy(),
+        AutoApprover(),
+        model="fake",
     )
     events = await drain(agent.run_turn(Session(workspace_root=workspace), "hello"))
     assert first_of(events, "context_recalled") is None

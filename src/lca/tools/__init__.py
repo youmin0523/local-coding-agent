@@ -14,6 +14,7 @@ from lca.tools.base import (
 )
 from lca.tools.browser import BrowserCheckTool, BrowserScreenshotTool
 from lca.tools.code_exec import RunPythonTool
+from lca.tools.delegate import DelegateTool
 from lca.tools.fs_read import read_tools
 from lca.tools.fs_write import write_tools
 from lca.tools.plan import UpdatePlanTool
@@ -34,6 +35,7 @@ __all__ = [
     "Artifact",
     "BrowserCheckTool",
     "BrowserScreenshotTool",
+    "DelegateTool",
     "FetchUrlTool",
     "ListSymbolsTool",
     "ReferenceDocsTool",
@@ -68,6 +70,7 @@ def build_default_registry(
         ListSymbolsTool(),
         RepoMapTool(),
         UpdatePlanTool(),
+        DelegateTool(),
         ReferenceDocsTool(),
         SecretScanTool(),
         BrowserScreenshotTool(),
