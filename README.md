@@ -69,13 +69,14 @@ the 7B model.
 (JWT/HS256, schema normalization to 3NF, simulation clocks, parsing, motor
 selection, …), running the **30B brain locally** on the hardware below:
 
-The 30B runs at temperature and the harness samples **once** per task, so a single
-run is noisy — be honest about it:
+The 30B runs at temperature, so be honest about what is stable and what is noisy:
 
-- **Generation (`--no-verify`): ~94% (16/17)** on a representative run — correct,
-  executable code (harness scores the files written + execution output).
-- **End-to-end (`--verify`): observed 59–82% across runs**, tool-validity ~89%. The
-  spread is dominated by single-sample 30B variance and strict substring scoring
+- **Generation (`--no-verify`): 94% (16/17), stable across 3 independent runs**
+  (tool-validity 85–87%) — correct, executable code (harness scores the files
+  written + execution output). The headline pass rate did **not** move run-to-run;
+  generation is the reliable signal.
+- **End-to-end (`--verify`): observed 59–82% across runs**, tool-validity ~89%. Unlike
+  generation, the verify number *does* swing — the spread is from strict substring scoring
   (long answers that miss an exact `must_contain` token), not by the gate. The gate's
   *logic* was hardened in M74 — passing execution now dominates the verdict and
   `run_checks` no longer counts "no tests"/lint nits as correctness failures, so it

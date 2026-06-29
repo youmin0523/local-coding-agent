@@ -112,11 +112,12 @@ uv run lint-imports       # architecture contract: KEPT
 ## Measured results (2026-06, on the RTX 5070 Laptop)
 `lca eval` on 17 verifiable domain tasks, 30B brain, generation mode (`--no-verify`),
 with the artifact-aware harness (scores files written + execution output):
-generation **~94% (16/17)** on a representative run; end-to-end with the verification
-gate (`--verify`) **observed 59-82% across runs**. The single-sample 30B is noisy at
-temperature, and strict substring scoring penalizes verbose-but-correct answers, so
-single-run numbers vary widely — best-of-N (router default for hard tasks) stabilizes
-it. M74 hardened the gate's logic (passing execution dominates the verdict; run_checks
+generation **94% (16/17), stable across 3 independent runs** (tool-validity 85-87%) —
+the headline pass rate did not move run-to-run. End-to-end with the verification gate
+(`--verify`) **observed 59-82% across runs**: unlike generation, the verify number
+swings, because strict substring scoring penalizes verbose-but-correct answers and the
+gate trades some pass-rate for calibrated abstention. Best-of-N (`--samples 3`) measured
+**76% (13/17)** with the abstention task correctly abstaining. M74 hardened the gate's logic (passing execution dominates the verdict; run_checks
 no longer treats no-tests/lint as correctness failures), removing false abstentions on
 correct code (5 unit tests). An earlier 6% reading was a harness bug — it checked only
 the chat summary while the agent writes code to files (fixed in M59).
