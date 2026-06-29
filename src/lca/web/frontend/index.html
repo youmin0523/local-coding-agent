@@ -95,6 +95,7 @@
         <span id="ctx" class="muted" title="대화가 차지하는 컨텍스트"></span>
         <button id="copyMd" class="hbtn" title="대화를 마크다운으로 클립보드에 복사">MD 복사</button>
         <button id="saveMd" class="hbtn" title="대화를 .md 파일로 저장">MD 저장</button>
+        <button id="undo" class="hbtn" title="에이전트의 마지막 파일 변경을 되돌립니다" disabled>↶ 되돌리기</button>
         <label class="muted">model
           <select id="model">
             <option value="auto">auto</option>
@@ -126,6 +127,7 @@
       const modelSel = document.getElementById("model");
       const copyMd = document.getElementById("copyMd");
       const saveMd = document.getElementById("saveMd");
+      const undoBtn = document.getElementById("undo");
       const ctxEl = document.getElementById("ctx");
       const convList = document.getElementById("convList");
       const newChat = document.getElementById("newChat");
@@ -191,6 +193,13 @@
         const used = Math.round(chars / 3) + 1200;  // mirrors the server's estimate
         const pct = Math.min(100, Math.round((used / ctxBudget) * 100));
         ctxEl.textContent = `🧠 ${pct}% · ${(used / 1000).toFixed(1)}K/${Math.round(ctxBudget / 1000)}K`;
+      }
+      async function refreshUndo() {  // reflect how many file edits can be reverted
+        try {
+          const { pending } = await (await fetch("/api/undo")).json();
+          undoBtn.disabled = !pending;
+          undoBtn.textContent = pending ? `↶ 되돌리기 (${pending})` : "↶ 되돌리기";
+        } catch (e) { /* ignore */ }
       }
 
       // ---- Conversations -----------------------------------------------------
@@ -336,6 +345,7 @@
             notifyDone(turnText);
             ev.close(); setRunning(false); input.focus();
             refreshList();  // update sidebar titles without reloading the live log
+            refreshUndo();  // a turn may have edited files → update the undo count
           }
         };
         ev.onerror = () => { hideThinking(); ev.close(); setRunning(false); };
@@ -375,8 +385,18 @@
         if (!text) { flash(saveMd, "대화 없음"); return; }
         downloadMd(text); flash(saveMd, "저장됨 ✓");
       };
+      undoBtn.onclick = async () => {
+        undoBtn.disabled = true;
+        try {
+          const { undone, pending } = await (await fetch("/api/undo", { method: "POST" })).json();
+          el("msg assistant", `<span class="badge recall">↶ undo</span> <span class="muted">${esc(undone || "되돌릴 변경 없음")}</span>`);
+          undoBtn.textContent = pending ? `↶ 되돌리기 (${pending})` : "↶ 되돌리기";
+          undoBtn.disabled = !pending;
+        } catch (e) { undoBtn.disabled = false; }
+      };
 
       loadConversations();
+      refreshUndo();
     </script>
   </body>
 </html>

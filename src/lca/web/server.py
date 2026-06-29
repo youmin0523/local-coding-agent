@@ -39,6 +39,7 @@ from lca.core.session import Session
 from lca.observability.logging import get_logger
 from lca.permissions.modes import AutonomyMode
 from lca.routing.router import Router
+from lca.tools.checkpoint import Checkpointer
 from lca.web.approver import WebApprover
 
 log = get_logger("web.server")
@@ -289,6 +290,16 @@ def create_app(*, workspace: Path, agent_builder: AgentBuilder | None = None) ->
     @app.post("/api/approvals/{request_id}")
     async def approve(request_id: str, req: ApprovalRequest) -> dict[str, bool]:
         return {"resolved": manager.resolve(request_id, req.approved)}
+
+    @app.get("/api/undo")
+    async def undo_status() -> dict[str, int]:
+        return {"pending": Checkpointer(workspace).pending()}
+
+    @app.post("/api/undo")
+    async def undo() -> dict[str, object]:
+        cp = Checkpointer(workspace)
+        desc = cp.undo_last()  # restore the most recent edit; None if nothing to undo
+        return {"undone": desc, "pending": cp.pending()}
 
     @app.get("/", response_class=HTMLResponse)
     async def index() -> str:

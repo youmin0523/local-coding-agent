@@ -112,6 +112,24 @@ def test_routing_builder_honors_explicit_model_choice(monkeypatch):
     assert calls[2]["model_logical"] in ("fast", "brain")
 
 
+def test_undo_endpoint_reverts_last_edit(tmp_path: Path):
+    from lca.tools.checkpoint import Checkpointer
+
+    f = tmp_path / "a.txt"
+    f.write_text("original", "utf-8")
+    Checkpointer(tmp_path).record(f)  # snapshot taken before the edit (as the tools do)
+    f.write_text("changed", "utf-8")
+
+    client = TestClient(
+        create_app(workspace=tmp_path, agent_builder=lambda a, m, model="auto": _noop_agent(a))
+    )
+    assert client.get("/api/undo").json()["pending"] == 1
+    body = client.post("/api/undo").json()
+    assert "a.txt" in body["undone"] and body["pending"] == 0
+    assert f.read_text() == "original"  # reverted in place
+    assert client.post("/api/undo").json()["undone"] is None  # nothing left to undo
+
+
 def test_approval_endpoint_unknown_id_returns_false(tmp_path: Path):
     client = TestClient(
         create_app(workspace=tmp_path, agent_builder=lambda a, m, model="auto": _noop_agent(a))
