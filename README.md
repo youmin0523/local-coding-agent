@@ -36,6 +36,10 @@ the 7B model.
 - **Summarize logs** and **debug from a traceback**, grounded in the actual lines.
 - **Plan multi-step tasks** with a tracked TODO (`update_plan`), and pull specific
   files into context with **`@path` mentions**.
+- **Test-first (TDD) mode** (`lca ask --tdd` / a web toggle) — writes a failing test,
+  confirms it's red, implements, and iterates to green before claiming done.
+- **Delegate** a self-contained subtask to a fresh **sub-agent** (`delegate`) with its
+  own clean context — bounded to depth 1, gated on spawn, reversible via undo.
 - **Search the web** and answer with citations (or abstain).
 - **Open a real browser** (Playwright) to screenshot a page and run E2E smoke
   checks — `browser_screenshot`, `browser_check`.
@@ -55,9 +59,10 @@ the 7B model.
   live "thinking" indicator, stop button, code-copy, a context-usage gauge, one-click
   Markdown export, and an **undo button** that reverts the agent's last file edit. Auto-detects
   the engine port and opens the browser itself; launch by double-clicking `start-web.bat`.
-- **Shows its work** — surfaces *why* an answer is trustworthy, not just the answer: a
-  **recall badge** when it reuses a verified past solution (self-improvement made visible),
-  the **verification verdict + confidence**, and abstention with safer options when unsure.
+- **Shows its work** — surfaces *why* an answer is trustworthy, not just the answer: the
+  **routing outcome** (which model · verify · best-of-N), a **recall badge** when it reuses
+  a verified past solution, a **changed-files** summary of the turn's footprint, the
+  **verification verdict + confidence**, and abstention with safer options when unsure.
 - **~150-card → 184-card knowledge base** spanning the whole developer stack:
   backend/frontend frameworks, databases, infra (k8s/Terraform/Kafka/OTel), and
   cross-cutting patterns (OAuth2/JWT/REST/caching/idempotency/testing).
