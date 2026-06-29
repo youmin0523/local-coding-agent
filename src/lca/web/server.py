@@ -138,7 +138,7 @@ class ConversationManager:
         self._persist(conv)
         return cid
 
-    def list(self) -> list[dict[str, str]]:
+    def summaries(self) -> list[dict[str, str]]:
         ordered = sorted(self._convos.values(), key=lambda c: c.created, reverse=True)
         return [{"id": c.id, "title": c.title} for c in ordered]
 
@@ -227,8 +227,11 @@ def _routing_builder() -> AgentBuilder:
     router = Router(brain_available=settings.profile == "quality")
 
     def build(approver: WebApprover, message: str, model: str = "auto") -> Agent:
-        if model in ("fast", "brain"):  # explicit user choice — skip routing
-            return build_agent(approver, settings=settings, model_logical=model, verify=False)
+        # explicit user choice — skip routing (pass literals so the type narrows)
+        if model == "fast":
+            return build_agent(approver, settings=settings, model_logical="fast", verify=False)
+        if model == "brain":
+            return build_agent(approver, settings=settings, model_logical="brain", verify=False)
         plan = router.plan(message)  # auto: route by difficulty
         return build_agent(
             approver,
@@ -248,7 +251,7 @@ def create_app(*, workspace: Path, agent_builder: AgentBuilder | None = None) ->
 
     @app.get("/api/conversations")
     async def list_conversations() -> dict[str, list[dict[str, str]]]:
-        return {"conversations": manager.list()}
+        return {"conversations": manager.summaries()}
 
     @app.post("/api/conversations")
     async def new_conversation(req: NewConversation) -> dict[str, str]:
