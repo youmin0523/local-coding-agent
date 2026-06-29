@@ -73,6 +73,52 @@ async def test_uncertain_verdict_abstains(workspace: Path):
     assert first_of(events, "turn_finished").stop_reason == "abstained"
 
 
+class _RepairAwareVerifier:
+    """Judges the first draft uncertain, but passes any answer containing 'FIXED'."""
+
+    async def verify_answer(
+        self, task: str, answer: str, *, execution_passed: bool | None = None
+    ) -> Verdict:
+        if "FIXED" in answer:
+            return Verdict(verdict="pass", confidence=0.9)
+        return Verdict(verdict="uncertain", confidence=0.3, signals=["needs detail"])
+
+
+async def test_self_repair_recovers_a_judge_uncertain_answer(workspace: Path):
+    # the draft is judged uncertain; the self-repair pass yields a passing answer → delivered
+    provider = FakeProvider([text_chunks("draft answer"), text_chunks("the FIXED answer")])
+    agent = Agent(
+        provider,
+        build_default_registry(enable_web=False),
+        DefaultPolicy(),
+        AutoApprover(),
+        model="fake",
+        verifier=_RepairAwareVerifier(),
+    )
+    events = await drain(agent.run_turn(Session(workspace_root=workspace), "q"))
+    v = first_of(events, "verification")
+    assert v.verdict == "pass" and "repair" in v.detail
+    tf = first_of(events, "turn_finished")
+    assert tf.stop_reason == "complete" and "FIXED" in tf.content
+    assert first_of(events, "abstain") is None
+
+
+async def test_abstains_when_repair_also_fails(workspace: Path):
+    # draft uncertain, repaired answer still uncertain → the gate still abstains (bar held)
+    provider = FakeProvider([text_chunks("draft"), text_chunks("still weak")])
+    agent = Agent(
+        provider,
+        build_default_registry(enable_web=False),
+        DefaultPolicy(),
+        AutoApprover(),
+        model="fake",
+        verifier=_StubVerifier(Verdict(verdict="uncertain", confidence=0.3, signals=["x"])),
+    )
+    events = await drain(agent.run_turn(Session(workspace_root=workspace), "q"))
+    assert first_of(events, "abstain") is not None
+    assert first_of(events, "turn_finished").stop_reason == "abstained"
+
+
 async def test_no_verifier_delivers_normally(workspace: Path):
     agent = _agent(None)
     events = await drain(agent.run_turn(Session(workspace_root=workspace), "hi"))

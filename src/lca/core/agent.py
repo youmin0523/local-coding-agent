@@ -258,7 +258,9 @@ class Agent:
             candidates = [answer]
             if self._samples > 1:
                 candidates += await self._sample_candidates(base_messages, self._samples - 1)
-            async for ev in self._select_verified(task, candidates, signals.execution_passed):
+            async for ev in self._select_verified(
+                task, candidates, signals.execution_passed, base_messages
+            ):
                 yield ev
             return
 
@@ -277,7 +279,11 @@ class Agent:
         yield TurnFinished(stop_reason="complete", content=answer)
 
     async def _select_verified(
-        self, task: str, candidates: list[str], execution_passed: bool | None = None
+        self,
+        task: str,
+        candidates: list[str],
+        execution_passed: bool | None = None,
+        base_messages: list[Message] | None = None,
     ) -> AsyncIterator[AgentEvent]:
         """Verify each candidate; deliver the best `pass`, else abstain (best-of-N).
 
@@ -319,6 +325,30 @@ class Agent:
             return
 
         best = max(scored, key=lambda s: s[0])
+        # No candidate passed. Before abstaining, try ONE self-repair from the failure
+        # signals and re-verify it — this recovers correct answers the judges were merely
+        # unsure about (the gate's main false-negative source) without lowering the bar.
+        # Skipped when execution already proved the answer wrong (a text fix won't change it).
+        if base_messages is not None and execution_passed is not False:
+            repaired = await self._repair(base_messages, best[2], best[3])
+            if repaired.strip() and repaired.strip() != best[2].strip():
+                try:
+                    v = await self._verifier.verify_answer(
+                        task, repaired, execution_passed=execution_passed
+                    )
+                except Exception as exc:
+                    log.warning("agent.repair_verify_failed", error=str(exc))
+                    v = None
+                if v is not None and v.verdict == "pass":
+                    self._metrics.incr("verified_pass")
+                    self._metrics.incr("self_repaired")
+                    yield VerificationResult(
+                        verdict="pass", confidence=v.confidence, detail="after self-repair"
+                    )
+                    await self._remember(task, repaired)
+                    yield TurnFinished(stop_reason="complete", content=repaired)
+                    return
+
         conf, verdict_kind, answer, sigs = best
         yield VerificationResult(
             verdict=verdict_kind, confidence=conf, detail=f"of {len(candidates)}"
@@ -363,6 +393,26 @@ class Agent:
             if chunk.delta_text:
                 parts.append(chunk.delta_text)
         return "".join(parts)
+
+    async def _repair(self, base_messages: list[Message], draft: str, signals: list[str]) -> str:
+        """One best-effort fix of a draft that failed verification, using its signals.
+
+        Best-effort: any failure returns "" so the caller falls through to abstaining.
+        """
+        critique = "; ".join(signals[:3]) or "the answer was not convincing"
+        repair_msgs = [
+            *base_messages,
+            Message.assistant(content=draft),
+            Message.user(
+                f"That answer did not pass verification ({critique}). Give a corrected, "
+                "complete answer that fixes those issues. Reply with the answer only."
+            ),
+        ]
+        try:
+            return await self._complete(repair_msgs, temperature=0.3)
+        except Exception as exc:  # repair must never break the turn → abstain instead
+            log.warning("agent.repair_failed", error=str(exc))
+            return ""
 
     async def _remember(self, task: str, answer: str) -> None:
         if self._memory is None:
