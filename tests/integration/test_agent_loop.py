@@ -84,6 +84,29 @@ async def test_subagent_cannot_delegate_further(workspace: Path):
     assert "not available" in delegated[0].result.content
 
 
+async def test_hardcoded_secret_blocks_finish_until_moved_to_env(workspace: Path):
+    # writes a config with a hardcoded API key, then tries to finish → the agent is
+    # nudged and must move it to an env reference before the turn can complete
+    provider = FakeProvider(
+        [
+            tool_chunks(
+                "write_file",
+                {"path": "config.json", "content": '{"api_key": "sk-proj-abcdefghijklmnopqrstuvwx"}'},
+            ),
+            text_chunks("saved the key"),  # tries to finish with the secret → nudged
+            tool_chunks(
+                "write_file", {"path": "config.json", "content": '{"api_key": "${API_KEY}"}'}
+            ),  # moved to an env reference
+            text_chunks("moved the key to an environment variable"),
+        ]
+    )
+    agent = _agent(provider, AutoApprover())
+    session = Session(workspace_root=workspace, mode=AutonomyMode.AUTONOMOUS)
+    events = await drain(agent.run_turn(session, "save the api key in config.json"))
+    assert "sk-proj" not in (workspace / "config.json").read_text()  # nudge forced the fix
+    assert first_of(events, "turn_finished").stop_reason == "complete"
+
+
 async def test_unrun_code_is_nudged_to_execute_before_finishing(workspace: Path):
     # the model writes a.py and tries to finish without running it → it gets nudged and
     # actually executes the code before the answer is delivered

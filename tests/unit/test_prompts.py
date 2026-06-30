@@ -13,5 +13,13 @@ def test_system_prompt_has_core_rules():
     assert "never invent" in p
 
 
+def test_system_prompt_has_security_directive():
+    p = SYSTEM_PROMPT.lower()
+    assert "security" in p
+    assert "never hardcode secrets" in p
+    assert "environment variable" in p and ".gitignore" in p
+    assert "injection" in p  # sql/shell injection guidance
+
+
 def test_workspace_note_includes_root():
     assert "/proj" in workspace_note("/proj")

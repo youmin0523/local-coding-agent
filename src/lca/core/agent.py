@@ -48,6 +48,7 @@ from lca.providers.base import ChatRequest, LLMProvider, ToolSchema
 from lca.tools.base import ToolContext, ToolResult, ToolSpec
 from lca.tools.preview import preview_call
 from lca.tools.registry import ToolRegistry
+from lca.tools.secret_scan import scan_text
 
 if TYPE_CHECKING:
     from lca.memory.memory import Memory
@@ -69,6 +70,8 @@ _SUBAGENT_MAX_ITER = 6
 # with unexecuted code; bounded so a model that can't run it still terminates.
 _MAX_CODE_NUDGES = 1
 _CODE_EXTS = (".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".rs", ".java", ".rb", ".c", ".cpp")
+# Before delivering, the agent must not leave a hardcoded secret in a file it wrote.
+_MAX_SECRET_NUDGES = 1
 
 
 class _Signals:
@@ -178,6 +181,7 @@ class Agent:
         self._metrics.incr("turns")
         empty_retries = 0
         code_nudges = 0
+        secret_nudges = 0
         temperature = self._temperature
 
         for _ in range(self._max_iter):
@@ -233,6 +237,21 @@ class Agent:
             messages.append(assistant)
 
             if not calls:
+                # Gate delivery on security: never finish while a hardcoded secret remains
+                # in a file the turn wrote — nudge to move it to env + .gitignore (once).
+                leaked = self._unfixed_secret_files(session.workspace_root, signals)
+                if leaked and secret_nudges < _MAX_SECRET_NUDGES:
+                    secret_nudges += 1
+                    self._metrics.incr("secret_nudges")
+                    messages.append(
+                        Message.user(
+                            f"Before finishing: a hardcoded secret is still present in "
+                            f"{', '.join(leaked)}. Move it to an environment variable (read it "
+                            "via env/settings at runtime), add the holding file to .gitignore, "
+                            "and re-write so no secret literal remains in the code."
+                        )
+                    )
+                    continue
                 # Gate delivery on execution: if the model wrote code but never ran it,
                 # nudge it to actually run/simulate the code before finishing (once).
                 if self._has_unrun_code(signals) and code_nudges < _MAX_CODE_NUDGES:
@@ -553,6 +572,23 @@ class Agent:
         if signals.truth_ok or signals.executed_ok:
             return False
         return any(p.strip().endswith(_CODE_EXTS) for p in signals.changed_files)
+
+    @staticmethod
+    def _unfixed_secret_files(workspace: Path, signals: _Signals) -> list[str]:
+        """Files the turn wrote that STILL contain a hardcoded secret (re-scanned now).
+
+        Re-reads each changed file so a secret the model already moved to env is not
+        re-flagged — only a genuinely unresolved leak triggers the pre-delivery nudge.
+        """
+        out: list[str] = []
+        for rel in signals.changed_files:
+            path = workspace / rel
+            try:
+                if path.is_file() and scan_text(path.read_text("utf-8", errors="replace")):
+                    out.append(rel)
+            except OSError:
+                continue
+        return out
 
     @staticmethod
     def _feed(messages: list[Message], session: Session, call: ToolCall, content: str) -> None:
